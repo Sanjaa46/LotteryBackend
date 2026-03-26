@@ -5,3 +5,176 @@ datasource db {
 generator client {
   provider = "prisma-client-js"
 }
+
+
+// Enums
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  BLOCKED
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ENDED
+}
+
+enum SubmissionResult {
+  WIN
+  LOSE
+}
+
+enum ClaimStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  DELIVERED
+}
+
+
+// Tables
+model User {
+  id Int @id @default(autoincrement())
+  email String @unique
+  phone String?
+  passwordHash String
+  status UserStatus @default(ACTIVE)
+  createdAt DateTime @default(now())
+  
+  userRoles UserRole[]
+  codeBatches CodeBatch[]
+  submissions Submission[]
+  prizeClaims PrizeClaim[]
+  autitLogs AuditLog[]
+}
+
+model Role {
+  id Int @id @default(autoincrement())
+  name String @unique
+  createdAt DateTime @default(now())
+  userRoles UserRole[]
+}
+
+model UserRole {
+  userId Int
+  roleId Int
+  @@id([userId, roleId])
+  user User @relation(fields: [userId], references: [id])
+  role Role @relation(fields: [roleId], references: [id])
+}
+
+model Campaign {
+  id Int @id @default(autoincrement())
+  name String
+  startDate DateTime
+  endDate DateTime
+  status CampaignStatus @default(DRAFT)
+  createdAt DateTime @default(now())
+
+  prizes Prize[]
+  codeBatches CodeBatch[]
+  lotteryCodes LotteryCode[]
+}
+
+model Prize {
+  id Int @id @default(autoincrement())
+  campaignId Int
+  name String
+  type String
+  totalQuantity Int
+  remainingQuantity Int
+  createdAt DateTime @default(now())
+  campaign Campaign @relation(fields: [campaignId], references: [id])
+
+  lotteryCodes LotteryCode[]
+  prizeClaims  PrizeClaim[]
+}
+
+
+model CodeBatch {
+  id Int @id @default(autoincrement())
+  campaignId Int
+  totalCodes Int
+  generatedBy Int
+  createdAt DateTime @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id])
+  user User @relation(fields: [generatedBy], references: [id])
+
+  LotteryCodes LotteryCode[]
+}
+
+model LotteryCode {
+  id Int @id @default(autoincrement())
+  code String @unique
+  campaignId Int
+  batchId Int
+  prizeId Int?
+  isUsed Boolean @default(false)
+  usedAt DateTime?
+  createdAt DateTime @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id])
+  codeBatch CodeBatch @relation(fields: [batchId], references: [id])
+  prize Prize? @relation(fields: [prizeId], references: [id])
+
+  submissions Submission[]
+
+  @@index([campaignId])
+  @@index([isUsed])
+}
+
+model Submission {
+  id Int @id @default(autoincrement())
+  userId Int
+  lotteryCodeId Int
+  result SubmissionResult
+  ipAddress String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+  lotteryCode LotteryCode @relation(fields: [lotteryCodeId], references: [id])
+  prizeClaims PrizeClaim[]
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model PrizeClaim {
+  id Int @id @default(autoincrement())
+  submissionId Int
+  userId Int
+  prizeId Int
+  status ClaimStatus @default(PENDING)
+  createdAt DateTime @default(now())
+  deliveredAt DateTime?
+
+  submission Submission @relation(fields: [submissionId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+  prize Prize @relation(fields: [prizeId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+}
+
+model AuditLog {
+  id Int @id @default(autoincrement())
+  userId Int
+  action String
+  entityType String
+  entityId Int
+  oldValue Json?
+  newValue Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
