@@ -20,6 +20,12 @@ export const register = async (req: Request, res: Response) => {
             return res.status(400).json({ message: "Email and password are required" });
         }
 
+        // Basic email format validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return res.status(400).json({ message: "Invalid email format" });
+        }
+
         // Check if user already exists
         const existingUser = await prisma.user.findUnique({ where: { email } });
         if (existingUser) {
@@ -69,9 +75,16 @@ export const login = async (req: Request, res: Response) => {
             return res.status(401).json({ message: "Invalid email or password" });
         }
 
+        const userRoleMapping = await prisma.userRole.findFirst({
+            where: { userId: user.id },
+            include: { role: true }
+        })
+
+        const roleName = userRoleMapping?.role.name;
+
         // Create access token
         const accessToken = jwt.sign(
-            { userId: user.id, email: user.email },
+            { userId: user.id, email: user.email, role: roleName },
             JWT_SECRET,
             { expiresIn: '15m' }
         );
@@ -101,6 +114,7 @@ export const login = async (req: Request, res: Response) => {
 
         return res.status(200).json({
             message: "Login successful",
+            roleName,
             accessToken,
         })
     } catch (error) {
