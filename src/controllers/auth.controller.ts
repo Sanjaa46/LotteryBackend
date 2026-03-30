@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { randomBytes, createHash } from "crypto";
 import prisma from "../lib/prisma";
+import { UserStatus } from "../generated/prisma";
 import redis from "../lib/redis";
 import jwt from "jsonwebtoken";
 import { hashPassword, comparePasswords } from "../utils/password";
@@ -179,9 +180,19 @@ export const login = async (req: Request, res: Response) => {
         }
 
         const user = await prisma.user.findUnique({ where: { email } });
-        if (!user || !(await comparePasswords(password, user.passwordHash))) {
+        if (!user) {
             return res.status(401).json({ message: "Invalid email or password" });
         }
+
+        // Check if user is suspended or blocked
+        if (user.status === UserStatus.SUSPENDED || user.status === UserStatus.BLOCKED) {
+            return res.status(403).json({ message: "Your account suspended or blocked."})
+        }
+
+        if (!(await comparePasswords(password, user.passwordHash))) {
+            return res.status(401).json({ message: "Invalid email or password" });
+        }
+
 
         const userRoleMapping = await prisma.userRole.findFirst({
             where: { userId: user.id },
@@ -280,6 +291,17 @@ export const refreshToken = async (req: Request, res: Response) => {
             return res.status(404).json({ message: "User not found" });
         }
 
+        // Check if user is suspended or blocked
+        if (user.status === UserStatus.SUSPENDED || user.status === UserStatus.BLOCKED) {
+            await redis.del(`refresh_token:${incomingHash}`)
+                res.clearCookie('refreshToken', {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+            });
+            return res.status(403).json({ message: "Your account suspended or blocked."})
+        }
+
         const roleName = user.userRoles[0]?.role.name;
 
         // Create new access token
@@ -288,6 +310,27 @@ export const refreshToken = async (req: Request, res: Response) => {
             JWT_SECRET,
             { expiresIn: '15m' }
         );
+
+        // Refresh Token Rotation
+        await redis.del(`refresh_token:${incomingHash}`);
+        const refreshToken = randomBytes(64).toString("hex");
+        const hashedRefreshToken = createHash('sha256').update(refreshToken).digest('hex');
+
+        // Save refresh token in Redis with an expiration time
+        await redis.set(
+            `refresh_token:${hashedRefreshToken}`,
+            user.id,
+            'EX',
+            7 * 24 * 60 * 60 // 7 days in seconds
+        )
+
+        // Return tokens. Save refresh token in an HttpOnly cookie
+        res.cookie('refreshToken', refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days in milliseconds
+        })
 
         return res.status(200).json({
             accessToken: newAccessToken,
@@ -314,6 +357,11 @@ export const forgotPassword = async (req: Request, res: Response) => {
         const user = await prisma.user.findUnique({ where: {email} });
         if (!user) {
             return res.status(404).json({ message: "User not found!"});
+        }
+
+        // Check if user is suspended or blocked
+        if (user.status === UserStatus.SUSPENDED || user.status === UserStatus.BLOCKED) {
+            return res.status(403).json({ message: "Your account suspended or blocked."})
         }
 
         const key = otpCacheKey(email, 'forgot_password');
