@@ -66,11 +66,21 @@ export const verifyOtp = async (req: Request, res: Response) => {
         const key = otpCacheKey(email, purpose);
         const storedOtp = await redis.get(key);
 
-        await redis.incrby(`otp_attempts:${email}`, 1)
+        if (!storedOtp) {
+            return res.status(400).json({ message: "OTP has expired, please request a new one" })
+        }
+
+        const attempts_key = `otp_attempts:${purpose}:${email}`;
+        const attempts = await getAttemptsCounterValue(attempts_key)
+
+        if (attempts >= 5) {
+            return res.status(429).json({ message: "Too many attempts." });
+        }
 
         if (storedOtp === otp) {
             // OTP is valid, proceed with registration or password reset logic
             await redis.del(key);
+            await redis.del(attempts_key)
 
             // Generate password token and save it in Redis with an expiration time (e.g., 15 minutes)
             const pwd_token = randomBytes(32).toString("hex");
@@ -78,6 +88,8 @@ export const verifyOtp = async (req: Request, res: Response) => {
             await redis.set(`pwd_token:${email}`, hashed_pwd_token, 'EX', 15 * 60); // 15 minutes in seconds
             return res.status(200).json({ message: "OTP verified successfully", pwd_token });
         } else {
+            await redis.incrby(attempts_key, 1)
+            await redis.expire(attempts_key, 5 * 60)
             return res.status(400).json({ message: "Invalid OTP" });
         }
     } catch (error) {
@@ -86,7 +98,7 @@ export const verifyOtp = async (req: Request, res: Response) => {
     }
 }
 
-const getCounterValue = async (key: string): Promise<number> => {
+const getAttemptsCounterValue = async (key: string): Promise<number> => {
     try {
         const value = await redis.get(key);
         // Redis stores numbers as strings
