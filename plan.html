@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lottery Backend — 3 Week Plan</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Sora:wght@400;600;700&display=swap');
+
+  :root {
+    --bg: #0d0f14;
+    --surface: #13161e;
+    --border: #1e2330;
+    --text: #e2e4ec;
+    --muted: #6b7280;
+    --done: #22c55e;
+    --done-bg: #052e16;
+    --done-border: #166534;
+    --w1: #a78bfa;
+    --w1-bg: #1e1040;
+    --w1-border: #4c1d95;
+    --w2: #2dd4bf;
+    --w2-bg: #021e1c;
+    --w2-border: #115e59;
+    --w3: #fb923c;
+    --w3-bg: #1c0e00;
+    --w3-border: #7c2d12;
+    --note-bg: #1a1c23;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Sora', sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 40px 24px;
+    max-width: 860px;
+    margin: 0 auto;
+  }
+
+  header {
+    margin-bottom: 36px;
+  }
+
+  header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: #fff;
+  }
+
+  header p {
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 4px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .section {
+    margin-bottom: 28px;
+  }
+
+  .week-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-radius: 8px 8px 0 0;
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.3px;
+  }
+
+  .week-header .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .done-header { background: var(--done-bg); border: 1px solid var(--done-border); color: var(--done); }
+  .w1-header   { background: var(--w1-bg);   border: 1px solid var(--w1-border);   color: var(--w1); }
+  .w2-header   { background: var(--w2-bg);   border: 1px solid var(--w2-border);   color: var(--w2); }
+  .w3-header   { background: var(--w3-bg);   border: 1px solid var(--w3-border);   color: var(--w3); }
+
+  .done-header .dot { background: var(--done); }
+  .w1-header   .dot { background: var(--w1); }
+  .w2-header   .dot { background: var(--w2); }
+  .w3-header   .dot { background: var(--w3); }
+
+  .rows {
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    overflow: hidden;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .row:last-child { border-bottom: none; }
+
+  .day-label {
+    background: var(--surface);
+    padding: 14px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    text-align: center;
+    border-right: 1px solid var(--border);
+    padding-top: 16px;
+  }
+
+  .row-content {
+    padding: 14px 16px;
+    background: var(--bg);
+  }
+
+  .row-content h3 {
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 6px;
+  }
+
+  .row-content ul {
+    list-style: none;
+    padding: 0;
+  }
+
+  .row-content ul li {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    padding: 1px 0;
+  }
+
+  .row-content ul li::before {
+    content: '→ ';
+    color: var(--border);
+  }
+
+  .done-row .row-content ul li::before { color: var(--done-border); }
+  .w1-row   .row-content ul li::before { color: var(--w1-border); }
+  .w2-row   .row-content ul li::before { color: var(--w2-border); }
+  .w3-row   .row-content ul li::before { color: var(--w3-border); }
+
+  .tag {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-right: 4px;
+    vertical-align: middle;
+    letter-spacing: 0.3px;
+  }
+
+  .tag-get    { background: #0c2a1a; color: #4ade80; border: 1px solid #166534; }
+  .tag-post   { background: #1a1000; color: #fb923c; border: 1px solid #92400e; }
+  .tag-patch  { background: #0a1a2e; color: #60a5fa; border: 1px solid #1e3a5f; }
+  .tag-delete { background: #1f0a0a; color: #f87171; border: 1px solid #7f1d1d; }
+  .tag-logic  { background: #1a0a2e; color: #c4b5fd; border: 1px solid #4c1d95; }
+  .tag-redis  { background: #1a0808; color: #fca5a5; border: 1px solid #991b1b; }
+
+  .note-box {
+    margin-top: 28px;
+    background: var(--note-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+  }
+
+  .note-box h4 {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 10px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .note-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+  }
+
+  .note-item {
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+  }
+
+  .note-item .label {
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .note-item .desc {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .n1 { background: var(--w1-bg); border-color: var(--w1-border); }
+  .n1 .label { color: var(--w1); }
+  .n2 { background: var(--w2-bg); border-color: var(--w2-border); }
+  .n2 .label { color: var(--w2); }
+  .n3 { background: var(--w3-bg); border-color: var(--w3-border); }
+  .n3 .label { color: var(--w3); }
+
+  @media (max-width: 600px) {
+    .note-grid { grid-template-columns: 1fr; }
+    .row { grid-template-columns: 72px 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🍜 Lottery Backend — 3 Week Roadmap</h1>
+  <p>Node.js learning project · Auth flow complete · 15 working days remaining</p>
+</header>
+
+<!-- DONE -->
+<div class="section">
+  <div class="week-header done-header">
+    <span class="dot"></span>
+    ✓ Completed — Authentication flow
+  </div>
+  <div class="rows">
+    <div class="row done-row">
+      <div class="day-label">Done</div>
+      <div class="row-content">
+        <h3>Auth endpoints</h3>
+        <ul>
+          <li>POST /api/auth/register · POST /api/auth/verify-otp · POST /api/auth/set-password</li>
+          <li>POST /api/auth/login · POST /api/auth/logout · POST /api/auth/refresh-token</li>
+          <li>POST /api/auth/forgot-password · GET /api/user/profile</li>
+          <li>JWT access token (15m) + Redis refresh token rotation (7d) + OTP via email</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- WEEK 1 -->
+<div class="section">
+  <div class="week-header w1-header">
+    <span class="dot"></span>
+    Week 1 — Campaign, Prize &amp; Code management (Admin)
+  </div>
+  <div class="rows">
+
+    <div class="row w1-row">
+      <div class="day-label">Day 1–2</div>
+      <div class="row-content">
+        <h3>Campaign CRUD <span class="tag tag-logic">admin only</span></h3>
+        <ul>
+          <li><span class="tag tag-post">POST</span> /api/admin/campaigns — create campaign with startDate, endDate</li>
+          <li><span class="tag tag-get">GET</span> /api/admin/campaigns — list all, filter by status/date</li>
+          <li><span class="tag tag-get">GET</span> /api/admin/campaigns/:id — single campaign detail</li>
+          <li><span class="tag tag-patch">PATCH</span> /api/admin/campaigns/:id/status — DRAFT → ACTIVE → PAUSED → ENDED</li>
+          <li><span class="tag tag-logic">LEARN</span> Admin role middleware — check req.user.role === 'admin'</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="row w1-row">
+      <div class="day-label">Day 3</div>
+      <div class="row-content">
+        <h3>Prize management</h3>
+        <ul>
+          <li><span class="tag tag-post">POST</span> /api/admin/campaigns/:id/prizes — add prize with probability %</li>
+          <li><span class="tag tag-get">GET</span> /api/admin/campaigns/:id/prizes — list prizes + remainingQuantity</li>
+          <li><span class="tag tag-patch">PATCH</span> /api/admin/prizes/:id — edit name, type, quantity, probability</li>
+          <li><span class="tag tag-logic">LEARN</span> Store probability as integer (e.g. 30 = 30%). Sum must ≤ 100</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="row w1-row">
+      <div class="day-label">Day 4–5</div>
+      <div class="row-content">
+        <h3>Lottery code generation (bulk)</h3>
+        <ul>
+          <li><span class="tag tag-post">POST</span> /api/admin/campaigns/:id/codes/generate — body: { count: 1000 }</li>
+          <li><span class="tag tag-logic">LEARN</span> Prisma transaction: createMany CodeBatch + LotteryCode in one tx</li>
+          <li><span class="tag tag-logic">LOGIC</span> Assign prizeId by probability — weighted random, respect remainingQuantity</li>
+          <li><span class="tag tag-get">GET</span> /api/admin/batches/:id/export — stream CSV download (csv-stringify)</li>
+          <li><span class="tag tag-get">GET</span> /api/admin/campaigns/:id/batches — list all code batches</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- WEEK 2 -->
+<div class="section">
+  <div class="week-header w2-header">
+    <span class="dot"></span>
+    Week 2 — Code submission, Lottery logic &amp; Prize claim (User + Admin)
+  </div>
+  <div class="rows">
+
+    <div class="row w2-row">
+      <div class="day-label">Day 6–7</div>
+      <div class="row-content">
+        <h3>Code submission endpoint</h3>
+        <ul>
+          <li><span class="tag tag-post">POST</span> /api/lottery/submit — body: { code: "ABC123" }</li>
+          <li><span class="tag tag-logic">VALIDATE</span> Code exists → campaign is ACTIVE → isUsed === false</li>
+          <li><span class="tag tag-logic">LEARN</span> Prisma transaction: mark isUsed=true + usedAt, create Submission atomically</li>
+          <li><span class="tag tag-redis">REDIS</span> Rate limit: max 10 submits/hour per IP · max 5 per user per day</li>
+          <li><span class="tag tag-logic">LOGIC</span> Check prizeId on code → if set: WIN, else: LOSE</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="row w2-row">
+      <div class="day-label">Day 8</div>
+      <div class="row-content">
+        <h3>Win/Lose result &amp; PrizeClaim creation</h3>
+        <ul>
+          <li><span class="tag tag-logic">WIN</span> Decrement Prize.remainingQuantity (use Prisma atomic decrement)</li>
+          <li><span class="tag tag-logic">WIN</span> Create PrizeClaim { status: PENDING } linked to Submission</li>
+          <li><span class="tag tag-logic">LOSE</span> No PrizeClaim created — return { result: "LOSE" } response</li>
+          <li><span class="tag tag-logic">LEARN</span> Save AuditLog for every submission — userId, action, IP, timestamp</li>
+          <li><span class="tag tag-logic">EMAIL</span> Send win notification email via existing mailer.ts</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="row w2-row">
+      <div class="day-label">Day 9–10</div>
+      <div class="row-content">
+        <h3>Prize claim management &amp; user history</h3>
+        <ul>
+          <li><span class="tag tag-get">GET</span> /api/user/submissions — my code submission history + WIN/LOSE result</li>
+          <li><span class="tag tag-get">GET</span> /api/user/claims — my prize claims + status (PENDING/APPROVED/DELIVERED)</li>
+          <li><span class="tag tag-get">GET</span> /api/admin/claims — all claims, filter by status, date, campaign</li>
+          <li><span class="tag tag-patch">PATCH</span> /api/admin/claims/:id/status — approve / reject / mark delivered</li>
+          <li><span class="tag tag-logic">EMAIL</span> Notify user on claim status change (approved or delivered)</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- WEEK 3 -->
+<div class="section">
+  <div class="week-header w3-header">
+    <span class="dot"></span>
+    Week 3 — Dashboard, Reports &amp; Security hardening
+  </div>
+  <div class="rows">
+
+    <div class="row w3-row">
+      <div class="day-label">Day 11–12</div>
+      <div class="row-content">
+        <h3>Admin dashboard statistics</h3>
+        <ul>
+          <li><span class="tag tag-get">GET</span> /api/admin/dashboard — total codes, used codes, winner count, claim stats</li>
+          <li><span class="tag tag-get">GET</span> /api/admin/dashboard?campaignId=1 — per-campaign breakdown</li>
+          <li><span class="tag tag-redis">REDIS</span> Cache dashboard result with TTL 60s — avoid heavy DB aggregations on every request</li>
+          <li><span class="tag tag-logic">LEARN</span> Prisma groupBy + _count + _sum for aggregation queries</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="row w3-row">
+      <div class="day-label">Day 13</div>
+      <div class="row-content">
+        <h3>Report export (CSV)</h3>
+        <ul>
+          <li><span class="tag tag-get">GET</span> /api/admin/reports/submissions?campaignId=1&amp;from=...&amp;to=... → CSV</li>
+          <li><span class="tag tag-get">GET</span> /api/admin/reports/winners?campaignId=1 → CSV with prize details</li>
+          <li><span class="tag tag-logic">LEARN</span> Use csv-stringify or exceljs — stream large result sets, don't load all into memory</li>
+          <li><span class="tag tag-logic">LEARN</span> Set res.setHeader('Content-Disposition', 'attachment; filename=report.csv')</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="row w3-row">
+      <div class="day-label">Day 14–15</div>
+      <div class="row-content">
+        <h3>Security hardening &amp; final cleanup</h3>
+        <ul>
+          <li><span class="tag tag-logic">PKG</span> helmet — secure HTTP headers on all routes</li>
+          <li><span class="tag tag-redis">REDIS</span> express-rate-limit + RedisStore — global rate limit on all public routes</li>
+          <li><span class="tag tag-logic">GUARD</span> CAPTCHA token validation on POST /lottery/submit</li>
+          <li><span class="tag tag-logic">GUARD</span> Admin middleware on every /api/admin/* route — 403 if not admin role</li>
+          <li><span class="tag tag-logic">AUDIT</span> Verify all write actions have AuditLog entries with userId + ipAddress</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Learning focus -->
+<div class="note-box">
+  <h4>Key learning focus per week</h4>
+  <div class="note-grid">
+    <div class="note-item n1">
+      <div class="label">Week 1 — Prisma</div>
+      <div class="desc">Transactions, createMany, relations between Campaign → Prize → CodeBatch → LotteryCode</div>
+    </div>
+    <div class="note-item n2">
+      <div class="label">Week 2 — Business logic</div>
+      <div class="desc">Atomic DB updates, weighted random prize assignment, Redis rate limiting patterns</div>
+    </div>
+    <div class="note-item n3">
+      <div class="label">Week 3 — Infrastructure</div>
+      <div class="desc">Streaming file responses, Redis caching strategy, security middleware stack</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

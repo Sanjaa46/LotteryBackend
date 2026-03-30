@@ -8,7 +8,7 @@ import { hashPassword, comparePasswords } from "../utils/password";
 import { otpCacheKey } from "../utils/cache";
 import { sendEmail } from "../utils/mailer";
 
-const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
+const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret_key";
 
 export const register = async (req: Request, res: Response) => {
     try {
