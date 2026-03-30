@@ -66,6 +66,8 @@ export const verifyOtp = async (req: Request, res: Response) => {
         const key = otpCacheKey(email, purpose);
         const storedOtp = await redis.get(key);
 
+        await redis.incrby(`otp_attempts:${email}`, 1)
+
         if (storedOtp === otp) {
             // OTP is valid, proceed with registration or password reset logic
             await redis.del(key);
@@ -83,6 +85,18 @@ export const verifyOtp = async (req: Request, res: Response) => {
         res.status(500).json({ message: "Internal server error" });
     }
 }
+
+const getCounterValue = async (key: string): Promise<number> => {
+    try {
+        const value = await redis.get(key);
+        // Redis stores numbers as strings
+        return value ? parseInt(value, 10) : 0;
+    } catch (error) {
+        console.error(`Error getting counter value for ${key}:`, error);
+        throw error;
+    }
+}
+
 
 export const setPassword = async (req: Request, res: Response) => {
     try {
@@ -102,30 +116,34 @@ export const setPassword = async (req: Request, res: Response) => {
             return res.status(400).json({ message: "Invalid or expired password token" });
         }
 
-        // Check if user already exists (in case of registration flow)
-        const existingUser = await prisma.user.findUnique({ where: { email } });
-        if (existingUser) {
-            return res.status(409).json({ message: "User already exists" });
-        }
+        // Delete the password token from Redis
+        await redis.del(`pwd_token:${email}`);
 
-        // Hash the new password and save it to the database
         const passwordHash = await hashPassword(password);
-        await prisma.user.create({
-            data: {
-                email,
-                passwordHash,
-                userRoles: {
-                    create: {
-                        role: {
-                            connect: { name: "user" }
+        
+        const user = await prisma.user.findUnique({ where: { email } });
+        if (!user) {
+            // Create new user
+            await prisma.user.create({
+                data: {
+                    email,
+                    passwordHash,
+                    userRoles: {
+                        create: {
+                            role: {
+                                connect: { name: "user" }
+                            }
                         }
                     }
                 }
-            }
-        });
+            });
+        } else {
+            await prisma.user.update({
+                where: { email },
+                data: {passwordHash}
+            })
+        }
 
-        // Delete the password token from Redis
-        await redis.del(`pwd_token:${email}`);
 
         return res.status(200).json({ message: "Password set successfully" });
     } catch (error) {
@@ -173,8 +191,8 @@ export const login = async (req: Request, res: Response) => {
 
         // Save refresh token in Redis with an expiration time
         await redis.set(
-            `refresh_token:${user.id}`,
-            hashedRefreshToken,
+            `refresh_token:${hashedRefreshToken}`,
+            user.id,
             'EX',
             7 * 24 * 60 * 60 // 7 days in seconds
         )
@@ -202,13 +220,15 @@ export const login = async (req: Request, res: Response) => {
 export const logout = async (req: Request, res: Response) => {
     try {
         const userId = req.user?.userId;
+        const refreshToken = req.cookies.refreshToken
 
         if (!userId) {
             return res.status(401).json({ message: "Unauthorized" });
         }
 
         // Delete the refresh token from Redis
-        await redis.del(`refresh_token:${userId}`);
+        const hashedRefreshToken = createHash('sha256').update(refreshToken).digest('hex');
+        await redis.del(`refresh_token:${hashedRefreshToken}`);
 
         // Clear the refresh token cookie
         res.clearCookie('refreshToken', {
@@ -227,28 +247,23 @@ export const logout = async (req: Request, res: Response) => {
 
 export const refreshToken = async (req: Request, res: Response) => {
     try {
-        const tokenFromCookie = req.cookies.refreshToken;
+        const tokenFromCookie = req.cookies?.refreshToken;
 
         if (!tokenFromCookie) {
             return res.status(401).json({ message: "Refresh token is required" });
         }
 
-        const userId = req.user?.userId;
+        const incomingHash = createHash('sha256').update(tokenFromCookie).digest('hex')
+        const userId = Number(await redis.get(`refresh_token:${incomingHash}`));
         if (!userId) {
             return res.status(401).json({ message: "Unauthorized" });
-        }
-
-        const incomingHash = createHash('sha256').update(tokenFromCookie).digest('hex');
-        const storedHash = await redis.get(`refresh_token:${userId}`);
-
-        if (!storedHash || incomingHash !== storedHash) {
-            return res.status(401).json({ message: "Invalid refresh token" });
         }
 
         const user = await prisma.user.findUnique({ 
             where: { id: userId },
             include: { userRoles: { include: { role: true } } } 
         });
+
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
@@ -267,6 +282,42 @@ export const refreshToken = async (req: Request, res: Response) => {
         });
     } catch (error) {
         console.error("Error during token refresh:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+}
+
+export const forgotPassword = async (req: Request, res: Response) => {
+    try {
+        if (!req.body || Object.keys(req.body).length === 0) {
+            return res.status(400).json({ message: "Request body is required" });
+        }
+
+        // Login logic will go here
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({ message: "Email is required!" });
+        }
+
+        const user = await prisma.user.findUnique({ where: {email} });
+        if (!user) {
+            return res.status(404).json({ message: "User not found!"});
+        }
+
+        const key = otpCacheKey(email, 'forgot_password');
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        await redis.set(key, otp, 'EX', 5 * 60);
+
+        // const sent = sendEmail(email, "Forgot password OTP", `<p>Your OTP for forgot password is: ${otp}</p>`);
+        const sent = sendEmail("sanjaas880@gmail.com", "Forgot password OTP", `<p>Your OTP for forgot password is: ${otp}</p>`);
+        
+        if (!sent) {
+            return res.status(500).json({ message: "Failed to send email."})
+        }
+
+        return res.status(200).json({ message: "OTP sent to email.", otp})
+    } catch (error) {
+        console.error("Error during forgot password:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 }
