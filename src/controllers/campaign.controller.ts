@@ -75,9 +75,19 @@ export const campaignList = async (req: Request, res: Response) => {
             return res.status(403).json({ message: "You do not have permission to access this resource."})
         }
 
+        const { name, status, startDate, endDate } = req.query;
+
         const campaigns = await prisma.campaign.findMany({
             orderBy: {
                 createdAt: 'desc'
+            },
+            where: {
+                name: {
+                    contains: name ? String(name) : undefined
+                },
+                status: status ? String(status) as CampaignStatus : undefined,
+                startDate: startDate ? new Date(String(startDate)) : undefined,
+                endDate: endDate ? new Date(String(endDate)) : undefined,
             }
         })
 
@@ -114,5 +124,61 @@ export const campaignDetails = async (req: Request, res: Response) => {
 }
 
 export const changeCampaignStatus = async (req: Request, res: Response) => {
-    
+    try {
+        if (req.user?.role !== "admin") {
+            return res.status(403).json({ message: "You do not have permission to access this resource."})
+        }
+
+        const { id } = req.params;
+        const { status } = req.body;
+
+        if (!id || !status) {
+            return res.status(400).json({ message: "Campaign ID and status are required." });
+        }
+
+        if (!Object.values(CampaignStatus).includes(status)) {
+            return res.status(400).json({ message: "Invalid status value." });
+        }
+
+        const campaign = await prisma.campaign.findUnique({
+            where: {
+                id: Number(id),
+            },
+        });
+
+        if (!campaign) {
+            return res.status(404).json({ message: "Campaign not found" });
+        }
+        
+        const oldStatus = campaign.status;
+
+        if (oldStatus === status) {
+            return res.status(400).json({ message: `Campaign is already in ${status} status.` });
+        } else if (oldStatus === CampaignStatus.ENDED) {
+            return res.status(400).json({ message: "Cannot change status of a completed campaign." });
+        } else if (oldStatus === CampaignStatus.DRAFT && status === CampaignStatus.PAUSED) {
+            return res.status(400).json({ message: "Cannot pause a campaign that is in draft status." });
+        } else if (oldStatus === CampaignStatus.DRAFT && status === CampaignStatus.ENDED) {
+            return res.status(400).json({ message: "Cannot end a campaign that is in draft status." });
+        } else if (oldStatus === CampaignStatus.PAUSED && status === CampaignStatus.DRAFT) {
+            return res.status(400).json({ message: "Cannot move a paused campaign back to draft status." });
+        }
+
+        const updatedCampaign = await prisma.campaign.update({
+            where: {
+                id: Number(id),
+            },
+            data: {
+                status: status as CampaignStatus,
+            },
+        });
+
+        return res.status(200).json({
+            message: "Campaign status updated.",
+            campaign: updatedCampaign
+        })
+    } catch (error) {
+        console.error("Error during change campaign status:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
 }

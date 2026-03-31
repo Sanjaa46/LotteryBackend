@@ -9,6 +9,8 @@ import { otpCacheKey } from "../utils/cache";
 import { sendEmail } from "../utils/mailer";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret_key";
+const accessTokenExpiry = '15m';
+const refreshTokenExpiry = 7 * 24 * 60 * 60;
 
 export const register = async (req: Request, res: Response) => {
     try {
@@ -205,7 +207,7 @@ export const login = async (req: Request, res: Response) => {
         const accessToken = jwt.sign(
             { userId: user.id, email: user.email, role: roleName },
             JWT_SECRET,
-            { expiresIn: '15m' }
+            { expiresIn: accessTokenExpiry }
         );
 
         // Create refresh token
@@ -217,7 +219,7 @@ export const login = async (req: Request, res: Response) => {
             `refresh_token:${hashedRefreshToken}`,
             user.id,
             'EX',
-            7 * 24 * 60 * 60 // 7 days in seconds
+            refreshTokenExpiry // 7 days in seconds
         )
 
         // Return tokens. Save refresh token in an HttpOnly cookie
@@ -225,7 +227,7 @@ export const login = async (req: Request, res: Response) => {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'strict',
-            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days in milliseconds
+            maxAge: refreshTokenExpiry * 1000 // 7 days in milliseconds
         })
 
         return res.status(200).json({
@@ -308,7 +310,7 @@ export const refreshToken = async (req: Request, res: Response) => {
         const newAccessToken = jwt.sign(
             { userId: user.id, email: user.email, role: roleName },
             JWT_SECRET,
-            { expiresIn: '15m' }
+            { expiresIn: accessTokenExpiry }
         );
 
         // Refresh Token Rotation
@@ -321,7 +323,7 @@ export const refreshToken = async (req: Request, res: Response) => {
             `refresh_token:${hashedRefreshToken}`,
             user.id,
             'EX',
-            7 * 24 * 60 * 60 // 7 days in seconds
+            refreshTokenExpiry // 7 days in seconds
         )
 
         // Return tokens. Save refresh token in an HttpOnly cookie
@@ -329,7 +331,7 @@ export const refreshToken = async (req: Request, res: Response) => {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'strict',
-            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days in milliseconds
+            maxAge: refreshTokenExpiry * 1000 // 7 days in milliseconds
         })
 
         return res.status(200).json({
