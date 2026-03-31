@@ -4,10 +4,6 @@ import { CampaignStatus } from "../generated/prisma";
 
 export const createCampaign = async (req: Request, res: Response) => {
     try {
-        if (req.user?.role !== "admin") {
-            return res.status(403).json({ message: "You do not have permission to access this resource."})
-        }
-
         if (!req.body || Object.keys(req.body).length === 0) {
             return res.status(400).json({ message: "Request body is required" });
         }
@@ -71,11 +67,20 @@ export const createCampaign = async (req: Request, res: Response) => {
 
 export const campaignList = async (req: Request, res: Response) => {
     try {
-        if (req.user?.role !== "admin") {
-            return res.status(403).json({ message: "You do not have permission to access this resource."})
-        }
+        const { name, status, fromDate, toDate } = req.query;
 
-        const { name, status, startDate, endDate } = req.query;
+        const parsedStartDate = new Date(fromDate as string);
+        const parsedEndDate = new Date(toDate as string);
+
+        if (status && !Object.values(CampaignStatus).includes(status as CampaignStatus)) {
+            return res.status(400).json({ message: "Invalid status value." });
+        }
+        
+        if ((fromDate && isNaN(parsedStartDate.getTime())) || (toDate && isNaN(parsedEndDate.getTime()))) {
+            return res.status(400).json({
+                message: "Invalid date format. Use ISO 8601 format."
+            });
+        }
 
         const campaigns = await prisma.campaign.findMany({
             orderBy: {
@@ -83,11 +88,16 @@ export const campaignList = async (req: Request, res: Response) => {
             },
             where: {
                 name: {
+                    mode: "insensitive",
                     contains: name ? String(name) : undefined
                 },
                 status: status ? String(status) as CampaignStatus : undefined,
-                startDate: startDate ? new Date(String(startDate)) : undefined,
-                endDate: endDate ? new Date(String(endDate)) : undefined,
+                startDate: {
+                    gte: fromDate ? parsedStartDate : undefined
+                },
+                endDate: {
+                    lte: toDate ? parsedEndDate : undefined
+                }
             }
         })
 
@@ -100,10 +110,6 @@ export const campaignList = async (req: Request, res: Response) => {
 
 export const campaignDetails = async (req: Request, res: Response) => {
     try {
-        if (req.user?.role !== "admin") {
-            return res.status(403).json({ message: "You do not have permission to access this resource."})
-        }
-
         const { id } = req.params;
 
         const campaign = await prisma.campaign.findUnique({
@@ -125,10 +131,6 @@ export const campaignDetails = async (req: Request, res: Response) => {
 
 export const changeCampaignStatus = async (req: Request, res: Response) => {
     try {
-        if (req.user?.role !== "admin") {
-            return res.status(403).json({ message: "You do not have permission to access this resource."})
-        }
-
         const { id } = req.params;
         const { status } = req.body;
 
