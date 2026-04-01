@@ -143,3 +143,51 @@ export const getCodeBatchDetails = async (req: Request, res: Response) => {
         return res.status(500).json({ message: "Internal server error" });
     }
 }
+
+export const exportCodeBatch = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+
+        if (!id) {
+            return res.status(400).json({ message: "Batch ID is required." });
+        }
+
+        const batch = await prisma.codeBatch.findUnique({
+            where: { id: Number(id) },
+            include: {
+                LotteryCodes: {
+                    select: {
+                        code: true,
+                        isUsed: true,
+                        prize: {
+                            select: {
+                                name: true
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        if (!batch) {
+            return res.status(404).json({ message: "Batch not found." });
+        }
+
+        // return as CSV
+        const csvHeader = "Code,IsUsed,Prize\n";
+        const csvRows = batch.LotteryCodes.map(code => {
+            const prizeName = code.prize ? code.prize.name : "";
+            return `${code.code},${code.isUsed},${prizeName}`;
+        }).join("\n");
+
+        const csvContent = csvHeader + csvRows;
+
+        res.setHeader("Content-Type", "text/csv");
+        res.setHeader("Content-Disposition", `attachment; filename="code_batch_${id}.csv"`);
+
+        return res.status(200).send(csvContent);
+    } catch (error) {
+        console.error("Error during export code batch:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+}
