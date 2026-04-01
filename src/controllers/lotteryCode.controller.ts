@@ -4,6 +4,14 @@ import { generateLotteryCode } from "../utils/code";
 
 const MAX_CODES_PER_BATCH = 1000;
 
+function shuffle(array: (number | null)[]): (number | null)[] {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+}
+
 export const createCodeBatch = async (req: Request, res: Response) => {
     try {
         if (!req.body || Object.keys(req.body).length === 0) {
@@ -29,6 +37,37 @@ export const createCodeBatch = async (req: Request, res: Response) => {
         if (Number(count) > MAX_CODES_PER_BATCH) {
             return res.status(400).json({ message: "Too many codes requested." });
         }
+
+        const prizes = await prisma.prize.findMany({
+            where: { campaignId: Number(id) },
+            select: {
+                id: true,
+                remainingQuantity: true
+            }
+        })
+
+        const totalAvailablePrizes = prizes.reduce((sum, prize) => sum + prize.remainingQuantity, 0);
+        if (totalAvailablePrizes > Number(count)) {
+            return res.status(400).json({ message: "Too many prizes for the requested number of codes." });
+        }
+
+        // Prize pool: create an array with prize IDs according to their remaining quantity, then fill the rest with null (no prize) and shuffle it
+        let prizePool: (number | null)[] = [];
+        prizes.forEach(prize => {
+            for (let i = 0; i < prize.remainingQuantity; i++) {
+                prizePool.push(prize.id);
+            }
+        });
+        while (prizePool.length < Number(count)) {
+            prizePool.push(null); // fill remaining with null (no prize)
+        }
+        prizePool = shuffle(prizePool);
+
+        return res.json({
+            message: "Code generation started. This may take a moment.",
+            prizes,
+            prizePool
+        });
 
         try {
             const result = await prisma.$transaction(async (tx) => {
