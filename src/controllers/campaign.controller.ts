@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import prisma from "../lib/prisma";
 import { CampaignStatus } from "../generated/prisma";
+import { shufflePrizePool } from "../utils/code";
 
 export const createCampaign = async (req: Request, res: Response) => {
     try {
@@ -129,18 +130,9 @@ export const campaignDetails = async (req: Request, res: Response) => {
     }
 }
 
-export const changeCampaignStatus = async (req: Request, res: Response) => {
+export const activateCampaign = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { status } = req.body;
-
-        if (!id || !status) {
-            return res.status(400).json({ message: "Campaign ID and status are required." });
-        }
-
-        if (!Object.values(CampaignStatus).includes(status)) {
-            return res.status(400).json({ message: "Invalid status value." });
-        }
 
         const campaign = await prisma.campaign.findUnique({
             where: {
@@ -151,36 +143,46 @@ export const changeCampaignStatus = async (req: Request, res: Response) => {
         if (!campaign) {
             return res.status(404).json({ message: "Campaign not found" });
         }
-        
-        const oldStatus = campaign.status;
 
-        if (oldStatus === status) {
-            return res.status(400).json({ message: `Campaign is already in ${status} status.` });
-        } else if (oldStatus === CampaignStatus.ENDED) {
-            return res.status(400).json({ message: "Cannot change status of a completed campaign." });
-        } else if (oldStatus === CampaignStatus.DRAFT && status === CampaignStatus.PAUSED) {
-            return res.status(400).json({ message: "Cannot pause a campaign that is in draft status." });
-        } else if (oldStatus === CampaignStatus.DRAFT && status === CampaignStatus.ENDED) {
-            return res.status(400).json({ message: "Cannot end a campaign that is in draft status." });
-        } else if (oldStatus === CampaignStatus.PAUSED && status === CampaignStatus.DRAFT) {
-            return res.status(400).json({ message: "Cannot move a paused campaign back to draft status." });
+        if (campaign.status !== CampaignStatus.DRAFT) {
+            return res.status(400).json({ message: "Only campaigns in DRAFT status can be activated." });
         }
 
-        const updatedCampaign = await prisma.campaign.update({
-            where: {
-                id: Number(id),
-            },
-            data: {
-                status: status as CampaignStatus,
-            },
+        const batches = await prisma.codeBatch.findMany({
+            where: { campaignId: Number(id) },
+            include: {
+                LotteryCodes: true
+            }
         });
 
-        return res.status(200).json({
-            message: "Campaign status updated.",
-            campaign: updatedCampaign
-        })
+        if (batches.length === 0 || batches.some(batch => batch.LotteryCodes.length === 0)) {
+            return res.status(400).json({ message: "Cannot activate campaign without at least one code batch containing codes." });
+        }
+
+        const totalCodes = batches.reduce((sum, batch) => sum + batch.LotteryCodes.length, 0);
+
+        const prizes = await prisma.prize.findMany({
+            where: { campaignId: Number(id) }
+        });
+
+        const totalAvailablePrizes = prizes.reduce((sum, prize) => sum + prize.remainingQuantity, 0);
+        if (totalAvailablePrizes > totalCodes) {
+            return res.status(400).json({ message: "Too many prizes for the requested number of codes." });
+        }
+
+        // Prize pool: create an array with prize IDs according to their remaining quantity, then fill the rest with null (no prize) and shuffle it
+        let prizePool: (number | null)[] = [];
+        prizes.forEach(prize => {
+            for (let i = 0; i < prize.remainingQuantity; i++) {
+                prizePool.push(prize.id);
+            }
+        });
+        while (prizePool.length < totalCodes) {
+            prizePool.push(null); // fill remaining with null (no prize)
+        }
+        prizePool = shufflePrizePool(prizePool);
     } catch (error) {
-        console.error("Error during change campaign status:", error);
+        console.error("Error during activate campaign:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 }

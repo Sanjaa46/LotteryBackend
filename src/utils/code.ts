@@ -5,4 +5,12 @@ const nanoid = customAlphabet(
   10
 );
 
+export const  shufflePrizePool = (array: (number | null)[]): (number | null)[] => {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+}
+
 export const generateLotteryCode = () => nanoid();
