@@ -123,7 +123,44 @@ export const campaignDetails = async (req: Request, res: Response) => {
             return res.status(404).json({ message: "Campaign not found" });
         }
 
-        return res.status(200).json(campaign);
+        const prizes = await prisma.prize.findMany({
+            where: { campaignId: Number(id) },
+            select: {
+                id: true,
+                name: true,
+                type: true,
+                totalQuantity: true
+            }
+        });
+
+        const codeBatches = await prisma.codeBatch.findMany({
+            where: { campaignId: Number(id) },
+            select: {
+                _count: {
+                    select: { LotteryCodes: true }
+                },
+                LotteryCodes: {
+                    select: {
+                        id: true,
+                        code: true,
+                        isUsed: true,
+                        prize: {
+                            select: {
+                                id: true,
+                                name: true
+                            }
+                        }
+                    }
+                },
+                generatedBy: true
+            }
+        });
+
+        return res.status(200).json({
+            ...campaign,
+            prizes,
+            codeBatches
+        });
     } catch (error) {
         console.error("Error during get campaign list:", error);
         res.status(500).json({ message: "Internal server error" });
@@ -165,6 +202,10 @@ export const activateCampaign = async (req: Request, res: Response) => {
             where: { campaignId: Number(id) }
         });
 
+        if (prizes.length === 0) {
+            return res.status(400).json({ message: "Cannot activate campaign without prizes." });
+        }
+
         const totalAvailablePrizes = prizes.reduce((sum, prize) => sum + prize.remainingQuantity, 0);
         if (totalAvailablePrizes > totalCodes) {
             return res.status(400).json({ message: "Too many prizes for the requested number of codes." });
@@ -181,6 +222,56 @@ export const activateCampaign = async (req: Request, res: Response) => {
             prizePool.push(null); // fill remaining with null (no prize)
         }
         prizePool = shufflePrizePool(prizePool);
+
+        const prizeAssignmentCount = new Map<number, number>();
+        const prizesToCodesMap = new Map<number | null, number[]>();
+        const codesToUpdate = batches.flatMap(batch => batch.LotteryCodes);
+
+        // prizeId -> codeId[] (group codes by prize)
+        // prizesToCodesMap.set(prizeId, [codeId1, codeId2, ...]);
+        prizePool.forEach((prizeId, index) => {
+            if (index >= codesToUpdate.length) return;
+
+            if (prizeId !== null) {
+                prizeAssignmentCount.set(prizeId, (prizeAssignmentCount.get(prizeId) || 0) + 1);
+            }
+            const codeId = codesToUpdate[index].id;
+            
+            // Get existing array or create new one, then push
+            const existing = prizesToCodesMap.get(prizeId) || [];
+            existing.push(codeId);
+            prizesToCodesMap.set(prizeId, existing);
+        });
+
+        await prisma.$transaction(async (tx) => {
+            // Update campaign status
+            await tx.campaign.update({
+                where: { id: Number(id) },
+                data: { status: CampaignStatus.ACTIVE }
+            });
+
+            // Assign prizes to codes
+            for (const [prizeId, codeIds] of prizesToCodesMap.entries()) {
+                await tx.lotteryCode.updateMany({
+                    where: { id: { in: codeIds } },
+                    data: { prizeId: prizeId }
+                });
+            }
+
+            // Update remaining quantity for each prize
+            for (const [prizeId, assignedCount] of prizeAssignmentCount.entries()) {
+                await tx.prize.update({
+                    where: { id: prizeId },
+                    data: {
+                        remainingQuantity: {
+                            decrement: assignedCount
+                        }
+                    }
+                });
+            }
+        });
+
+        return res.status(200).json({ message: "Campaign activated." });
     } catch (error) {
         console.error("Error during activate campaign:", error);
         res.status(500).json({ message: "Internal server error" });
