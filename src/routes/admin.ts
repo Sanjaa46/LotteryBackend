@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/authMiddleware";
 import { adminMiddleware } from "../middleware/adminMiddleware";
-import { createCampaign, campaignList, campaignDetails, activateCampaign } from "../controllers/campaign.controller";
+import { createCampaign, campaignList, campaignDetails, activateCampaign, pauseCampaign, unpauseCampaign } from "../controllers/campaign.controller";
 import { createPrize, prizeList, editPrize } from "../controllers/prize.controller";
 import { createCodeBatch, getCodeBatchDetails, codeBatchList, exportCodeBatch } from "../controllers/lotteryCode.controller";
 
@@ -11,6 +11,8 @@ router.post('/campaigns', authMiddleware, adminMiddleware, createCampaign);
 router.get('/campaigns', authMiddleware, adminMiddleware, campaignList);
 router.get('/campaigns/:id', authMiddleware, adminMiddleware, campaignDetails);
 router.patch('/campaigns/:id/activate', authMiddleware, adminMiddleware, activateCampaign);
+router.patch('/campaigns/:id/pause', authMiddleware, adminMiddleware, pauseCampaign);
+router.patch('/campaigns/:id/unpause', authMiddleware, adminMiddleware, unpauseCampaign);
 
 router.post('/campaigns/:id/prizes', authMiddleware, adminMiddleware, createPrize);
 router.get('/campaigns/:id/prizes', authMiddleware, adminMiddleware, prizeList);
