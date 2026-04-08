@@ -4,7 +4,7 @@ import { ClaimStatus } from "../generated/prisma";
 
 export const getPrizeClaims = async (req: Request, res: Response) => {
     try {
-        const { status, fromDate, toDate, campaign } = req.query;
+        const { status, fromDate, toDate, campaign, page, pageSize } = req.query;
         const parsedFromDate = fromDate ? new Date(fromDate as string) : undefined;
         const parsedToDate = toDate ? new Date(toDate as string) : undefined;
 
@@ -30,7 +30,14 @@ export const getPrizeClaims = async (req: Request, res: Response) => {
             };
         }
 
+        const pageInt = Number(page) || 1;
+        const pageSizeInt = Number(pageSize) || 10;
+        const skip = (pageInt - 1) * pageSizeInt;
+
+
         const claims = await prisma.prizeClaim.findMany({
+            skip,
+            take: pageSizeInt,
             where,
             include: {
                 user: {
@@ -55,7 +62,9 @@ export const getPrizeClaims = async (req: Request, res: Response) => {
             },
         });
 
-        return res.status(200).json(claims);
+        const totalClaims = await prisma.prizeClaim.count({ where });
+
+        return res.status(200).json({ claims, totalClaims, page: pageInt, pageSize: pageSizeInt });
     } catch (error) {
         console.error("Error fetching prize claims:", error);
         res.status(500).json({ message: "Internal server error." });
