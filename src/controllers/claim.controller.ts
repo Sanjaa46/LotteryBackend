@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import prisma from "../lib/prisma";
 import { ClaimStatus } from "../generated/prisma";
+import { sendEmail } from "../utils/mailer";
 
 export const getPrizeClaims = async (req: Request, res: Response) => {
     try {
@@ -96,6 +97,35 @@ export const changeClaimStatus = async (req: Request, res: Response) => {
             where: { id: Number(id) },
             data: { status },
         });
+
+        if (status === ClaimStatus.APPROVED) {
+            const user = await prisma.user.findUnique({
+                where: { id: claim.userId },
+            });
+
+            const prize = await prisma.prize.findUnique({
+                where: { id: claim.prizeId },
+                include: {
+                    campaign: true,
+                }
+            });
+
+            if (user && prize) {
+                const emailSent = await sendEmail(
+                    user.email,
+                    "Congratulations! Your prize claim has been approved",
+                    `<p>Dear ${user.email},</p>
+                    <p>We are excited to inform you that your claim for the prize "${prize.name}" in the campaign "${prize.campaign.name}" has been approved!</p>
+                    <p>Please follow the instructions provided in the campaign details to redeem your prize.</p>
+                    <p>Thank you for participating!</p>
+                    <p>Best regards,<br/>Lottery App Team</p>`
+                );
+
+                if (!emailSent) {
+                    console.error(`Failed to send email to user ${user.email} for approved claim ${claim.id}`);
+                }
+            }
+        }
 
         return res.status(200).json(updatedClaim);
     } catch (error) {

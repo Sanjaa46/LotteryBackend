@@ -11,9 +11,16 @@ const transporter = nodemailer.createTransport({
 })
 
 export const sendEmail = async (to: string, subject: string, html: string) => {
+    // const mailOptions = {
+    //     from: `Lottery App <${process.env.GMAIL_USER}>`,
+    //     to,
+    //     subject,
+    //     html,
+    // };
+
     const mailOptions = {
         from: `Lottery App <${process.env.GMAIL_USER}>`,
-        to,
+        to: "sanjaas880@gmail.com",
         subject,
         html,
     };

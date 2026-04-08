@@ -44,8 +44,7 @@ export const register = async (req: Request, res: Response) => {
         await redis.set(key, otp, 'EX', 5 * 60); // 5 minutes in seconds
 
         // Send OTP to user's email
-        // await sendEmail(email, "Registration OTP", `<p>Your OTP for registration is: <b>${otp}</b></p>`);
-        await sendEmail("sanjaas880@gmail.com", "Registration OTP", `<p>Your OTP for registration is: <b>${otp}</b></p>`);
+        await sendEmail(email, "Registration OTP", `<p>Your OTP for registration is: <b>${otp}</b></p>`);
 
         return res.status(200).json({ message: "OTP sent to email", otp }); // Remove otp from response in production
 
@@ -370,8 +369,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         await redis.set(key, otp, 'EX', 5 * 60);
 
-        // const sent = sendEmail(email, "Forgot password OTP", `<p>Your OTP for forgot password is: ${otp}</p>`);
-        const sent = sendEmail("sanjaas880@gmail.com", "Forgot password OTP", `<p>Your OTP for forgot password is: ${otp}</p>`);
+        const sent = sendEmail(email, "Forgot password OTP", `<p>Your OTP for forgot password is: ${otp}</p>`);
         
         if (!sent) {
             return res.status(500).json({ message: "Failed to send email."})
