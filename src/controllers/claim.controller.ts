@@ -70,3 +70,36 @@ export const getPrizeClaims = async (req: Request, res: Response) => {
         res.status(500).json({ message: "Internal server error." });
     }
 }
+
+export const changeClaimStatus = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        if (!Object.values(ClaimStatus).includes(status)) {
+            return res.status(400).json({ message: "Invalid status value." });
+        }
+
+        const claim = await prisma.prizeClaim.findUnique({
+            where: { id: Number(id) },
+        });
+
+        if (!claim) {
+            return res.status(404).json({ message: "Claim not found." });
+        }
+
+        if (claim.status === status) {
+            return res.status(400).json({ message: `Claim is already in '${status}' status.` });
+        }
+
+        const updatedClaim = await prisma.prizeClaim.update({
+            where: { id: Number(id) },
+            data: { status },
+        });
+
+        return res.status(200).json(updatedClaim);
+    } catch (error) {
+        console.error("Error changing claim status:", error);
+        res.status(500).json({ message: "Internal server error." });
+    }
+}

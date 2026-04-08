@@ -4,7 +4,7 @@ import { adminMiddleware } from "../middleware/adminMiddleware";
 import { createCampaign, campaignList, campaignDetails, activateCampaign, pauseCampaign, unpauseCampaign } from "../controllers/campaign.controller";
 import { createPrize, prizeList, editPrize } from "../controllers/prize.controller";
 import { createCodeBatch, getCodeBatchDetails, codeBatchList, exportCodeBatch } from "../controllers/lotteryCode.controller";
-import { getPrizeClaims } from "../controllers/claim.controller";
+import { getPrizeClaims, changeClaimStatus } from "../controllers/claim.controller";
 
 const router = Router();
 
@@ -26,5 +26,6 @@ router.get('/batches/:id', authMiddleware, adminMiddleware, getCodeBatchDetails)
 router.get('/batches/:id/export', authMiddleware, adminMiddleware, exportCodeBatch);
 
 router.get('/claims', authMiddleware, adminMiddleware, getPrizeClaims);
+router.patch('/claims/:id/status', authMiddleware, adminMiddleware, changeClaimStatus);
 
 export default router;
