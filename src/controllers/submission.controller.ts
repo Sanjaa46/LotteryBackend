@@ -43,11 +43,12 @@ export const submitLotteryCode = async (req: Request, res: Response) => {
             return res.status(400).json({ message: "Campaign is not active." });
         }
 
-        if (campaign.startDate > now) {
-            return res.status(400).json({ message: "Campaign has not started yet." });
-        } else if (campaign.endDate < now) {
-            return res.status(400).json({ message: "Campaign has already ended." });
-        }
+        // TODO: Uncomment the following lines if you want to enforce campaign start and end dates
+        // if (campaign.startDate > now) {
+        //     return res.status(400).json({ message: "Campaign has not started yet." });
+        // } else if (campaign.endDate < now) {
+        //     return res.status(400).json({ message: "Campaign has already ended." });
+        // }
 
         try {
             await prisma.$transaction(async (tx) => {
