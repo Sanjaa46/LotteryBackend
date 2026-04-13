@@ -5,6 +5,7 @@ import { createCampaign, campaignList, campaignDetails, activateCampaign, pauseC
 import { createPrize, prizeList, editPrize } from "../controllers/prize.controller";
 import { createCodeBatch, getCodeBatchDetails, codeBatchList, exportCodeBatch } from "../controllers/lotteryCode.controller";
 import { getPrizeClaims, changeClaimStatus } from "../controllers/claim.controller";
+import { getDashboardStats } from "../controllers/dashboard.controller";
 
 const router = Router();
 
@@ -27,5 +28,7 @@ router.get('/batches/:id/export', authMiddleware, adminMiddleware, exportCodeBat
 
 router.get('/claims', authMiddleware, adminMiddleware, getPrizeClaims);
 router.patch('/claims/:id/status', authMiddleware, adminMiddleware, changeClaimStatus);
+
+router.get('/dashboard', authMiddleware, adminMiddleware, getDashboardStats);
 
 export default router;
