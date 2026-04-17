@@ -5,12 +5,17 @@ import userRoutes from "./routes/user";
 import adminRoutes from "./routes/admin"
 import apiRoutes from "./routes/api";
 import helmet from 'helmet';
+import * as dotenv from 'dotenv';
+import { limiter } from "./middleware/rateLimiter";
+
+dotenv.config();
 
 const app = express()
 const port = process.env.PORT || 3000;
 
 app.use(helmet());
 app.use(express.json());
+app.use(limiter);
 app.use(cookieParser());
 app.use("/api/user", userRoutes);
 app.use("/api/auth", authRoutes);
