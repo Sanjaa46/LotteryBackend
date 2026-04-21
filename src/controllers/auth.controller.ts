@@ -7,6 +7,7 @@ import jwt from "jsonwebtoken";
 import { hashPassword, comparePasswords } from "../utils/password";
 import { otpCacheKey } from "../utils/cache";
 import { sendEmail } from "../utils/mailer";
+import { createAuditLog } from "../utils/auditLog";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret_key";
 const accessTokenExpiry = '15m';
@@ -191,6 +192,17 @@ export const login = async (req: Request, res: Response) => {
         }
 
         if (!(await comparePasswords(password, user.passwordHash))) {
+            // Audit log for failed login attempt can be added here
+            await createAuditLog(prisma, {
+                userId: user.id,
+                action: "INCORRECT_PASSWORD",
+                entityType: "User",
+                entityId: user.id,
+                oldValue: null,
+                newValue: { email },
+                ipAddress: String(req.headers['x-forwarded-for'] || req.socket.remoteAddress),
+                userAgent: req.headers['user-agent'] || "Unknown",
+            });
             return res.status(401).json({ message: "Invalid email or password" });
         }
 

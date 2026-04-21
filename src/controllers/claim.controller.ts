@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import prisma from "../lib/prisma";
 import { ClaimStatus } from "../generated/prisma";
 import { sendEmail } from "../utils/mailer";
+import { createAuditLog } from "../utils/auditLog";
 
 export const getPrizeClaims = async (req: Request, res: Response) => {
     try {
@@ -126,6 +127,17 @@ export const changeClaimStatus = async (req: Request, res: Response) => {
                 }
             }
         }
+
+        await createAuditLog(prisma, {
+            userId: req.user?.userId!,
+            action: "CHANGE_CLAIM_STATUS",
+            entityType: "CLAIM",
+            entityId: Number(id),
+            oldValue: { status: claim.status },
+            newValue: { status },
+            ipAddress: String(req.headers['x-forwarded-for'] || req.socket.remoteAddress),
+            userAgent: String(req.headers['user-agent'] || '')
+        });
 
         return res.status(200).json(updatedClaim);
     } catch (error) {

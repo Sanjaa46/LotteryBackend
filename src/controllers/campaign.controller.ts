@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import prisma from "../lib/prisma";
 import { CampaignStatus } from "../generated/prisma";
 import { shufflePrizePool } from "../utils/code";
+import { createAuditLog } from "../utils/auditLog";
 
 export const createCampaign = async (req: Request, res: Response) => {
     try {
@@ -48,14 +49,30 @@ export const createCampaign = async (req: Request, res: Response) => {
             return res.status(409).json({ message: "Active campaign with same name already exists." })
         }
 
-        const campaign = await prisma.campaign.create({
-            data: {
-                name,
-                startDate: parsedStartDate,
-                endDate: parsedEndDate
-            }
-        });
+        const campaign = await prisma.$transaction(async (tx) => {
+            const campaign = await tx.campaign.create({
+                data: {
+                    name,
+                    startDate: parsedStartDate,
+                    endDate: parsedEndDate
+                }
+            });
 
+            await createAuditLog(tx, {
+                userId: req.user?.userId!,
+                action: "CREATE",
+                entityType: "CAMPAIGN",
+                entityId: campaign.id,
+                oldValue: null,
+                newValue: campaign,
+                ipAddress: String(req.headers['x-forwarded-for'] || req.socket.remoteAddress),
+                userAgent: String(req.headers['user-agent'] || '')
+            });
+
+            return campaign;
+        });
+        
+        
         return res.status(200).json({
             message: "Campaign created.",
             campaignId: campaign.id
@@ -274,6 +291,17 @@ export const activateCampaign = async (req: Request, res: Response) => {
                     }
                 });
             }
+
+            await createAuditLog(tx, {
+                userId: req.user?.userId!,
+                action: "ACTIVATE_CAMPAIGN",
+                entityType: "CAMPAIGN",
+                entityId: Number(id),
+                oldValue: { status: CampaignStatus.DRAFT },
+                newValue: { status: CampaignStatus.ACTIVE },
+                ipAddress: String(req.headers['x-forwarded-for'] || req.socket.remoteAddress),
+                userAgent: String(req.headers['user-agent'] || '')
+            });
         });
 
         return res.status(200).json({ message: "Campaign activated." });
@@ -305,6 +333,18 @@ export const pauseCampaign = async (req: Request, res: Response) => {
             where: { id: Number(id) },
             data: { status: CampaignStatus.PAUSED }
         });
+
+        await createAuditLog(prisma, {
+            userId: req.user?.userId!,
+            action: "PAUSE_CAMPAIGN",
+            entityType: "CAMPAIGN",
+            entityId: Number(id),
+            oldValue: { status: CampaignStatus.ACTIVE },
+            newValue: { status: CampaignStatus.PAUSED },
+            ipAddress: String(req.headers['x-forwarded-for'] || req.socket.remoteAddress),
+            userAgent: String(req.headers['user-agent'] || '')
+        });
+
 
         return res.status(200).json({ message: "Campaign paused." });
     } catch (error) {
@@ -339,6 +379,17 @@ export const unpauseCampaign = async (req: Request, res: Response) => {
         await prisma.campaign.update({
             where: { id: Number(id) },
             data: { status: CampaignStatus.ACTIVE }
+        });
+
+        await createAuditLog(prisma, {
+            userId: req.user?.userId!,
+            action: "UNPAUSE_CAMPAIGN",
+            entityType: "CAMPAIGN",
+            entityId: Number(id),
+            oldValue: { status: CampaignStatus.PAUSED },
+            newValue: { status: CampaignStatus.ACTIVE },
+            ipAddress: String(req.headers['x-forwarded-for'] || req.socket.remoteAddress),
+            userAgent: String(req.headers['user-agent'] || '')
         });
 
         return res.status(200).json({ message: "Campaign unpaused." });

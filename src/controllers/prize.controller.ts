@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../lib/prisma";
+import { createAuditLog } from "../utils/auditLog";
 
 export const createPrize = async (req: Request, res: Response) => {
     try {
@@ -41,15 +42,30 @@ export const createPrize = async (req: Request, res: Response) => {
             return res.status(400).json({ message: "Prize with the same name already exists in this campaign." });
         }
 
-        const prize = await prisma.prize.create({
-            data: {
-                name: name,
-                type: type,
-                totalQuantity: Number(totalQuantity),
-                remainingQuantity: Number(totalQuantity),
-                campaignId: campaign.id
-            }
-        });
+        const prize = await prisma.$transaction(async (tx) => {
+            const prize = await tx.prize.create({
+                data: {
+                    name: name,
+                    type: type,
+                    totalQuantity: Number(totalQuantity),
+                    remainingQuantity: Number(totalQuantity),
+                    campaignId: campaign.id
+                }
+            });
+
+            await createAuditLog(tx, {
+                userId: req.user?.userId!,
+                action: "CREATE_PRIZE",
+                entityType: "PRIZE",
+                entityId: prize.id,
+                oldValue: null,
+                newValue: { name, type, totalQuantity },
+                ipAddress: String(req.headers['x-forwarded-for'] || req.socket.remoteAddress),
+                userAgent: String(req.headers['user-agent'] || '')
+            });
+
+            return prize;
+        })
 
         return res.status(200).json({
             message: "Prize created.",
@@ -126,9 +142,22 @@ export const editPrize = async (req: Request, res: Response) => {
             }
         }
 
-        await prisma.prize.update({
-            where: { id: Number(id) },
-            data: updatedData
+        await prisma.$transaction(async (tx) => {
+            await tx.prize.update({
+                where: { id: Number(id) },
+                data: updatedData
+            });
+
+            await createAuditLog(tx, {
+                userId: req.user?.userId!,
+                action: "EDIT_PRIZE",
+                entityType: "PRIZE",
+                entityId: Number(id),
+                oldValue: { name: prize.name, type: prize.type, totalQuantity: prize.totalQuantity },
+                newValue: { name: updatedData.name || prize.name, type: updatedData.type || prize.type, totalQuantity: updatedData.totalQuantity || prize.totalQuantity },
+                ipAddress: String(req.headers['x-forwarded-for'] || req.socket.remoteAddress),
+                userAgent: String(req.headers['user-agent'] || '')
+            });
         });
 
         return res.status(200).json({ message: "Prize updated." });

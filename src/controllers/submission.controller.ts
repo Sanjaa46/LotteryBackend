@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import prisma from "../lib/prisma";
 import { CampaignStatus, SubmissionResult } from "../generated/prisma";
+import { createAuditLog } from "../utils/auditLog";
 
 export const submitLotteryCode = async (req: Request, res: Response) => {
     try {
@@ -84,6 +85,17 @@ export const submitLotteryCode = async (req: Request, res: Response) => {
                     where: { id: lotteryCode.id },
                     data: { isUsed: true }
                 });
+
+                await createAuditLog(tx, {
+                    userId: req.user?.userId!,
+                    action: "SUBMIT_CODE",
+                    entityType: "Submission",
+                    entityId: lotteryCode.id,
+                    oldValue: null,
+                    newValue: { code, result: isWin ? "WIN" : "LOSE" },
+                    ipAddress: String(ipAddress),
+                    userAgent: req.headers['user-agent'] || "Unknown",
+                })
             })
         } catch (error) {
             console.error("Error recording submission:", error);

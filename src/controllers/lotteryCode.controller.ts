@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import prisma from "../lib/prisma";
 import { CampaignStatus } from "../generated/prisma";
 import { generateLotteryCode } from "../utils/code";
+import { createAuditLog } from "../utils/auditLog";
 
 const MAX_CODES_PER_BATCH = 1000;
 
@@ -71,6 +72,17 @@ export const createCodeBatch = async (req: Request, res: Response) => {
                         skipDuplicates: true //avoid rare collision
                     });
                 }
+
+                await createAuditLog(tx, {
+                    userId: Number(userId)!,
+                    action: "CREATE_CODE_BATCH",
+                    entityType: "CODE_BATCH",
+                    entityId: batch.id,
+                    oldValue: null,
+                    newValue: { totalCodes: Number(count) },
+                    ipAddress: String(req.headers['x-forwarded-for'] || req.socket.remoteAddress),
+                    userAgent: String(req.headers['user-agent'] || '')
+                });
 
                 return batch;
             });
