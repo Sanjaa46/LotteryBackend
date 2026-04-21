@@ -21,10 +21,30 @@ export const submitLotteryCode = async (req: Request, res: Response) => {
         });
 
         if (!lotteryCode) {
+            await createAuditLog(prisma, {
+                userId: req.user?.userId!,
+                action: "SUBMIT_INVALID_CODE",
+                entityType: "LotteryCode",
+                entityId: 0,
+                oldValue: null,
+                newValue: { code },
+                ipAddress: String(ipAddress),
+                userAgent: req.headers['user-agent'] || "Unknown",
+            });
             return res.status(404).json({ message: "Invalid lottery code." });
         }
 
         if (lotteryCode.isUsed) {
+            await createAuditLog(prisma, {
+                userId: req.user?.userId!,
+                action: "SUBMIT_USED_CODE",
+                entityType: "LotteryCode",
+                entityId: lotteryCode.id,
+                oldValue: null,
+                newValue: { code },
+                ipAddress: String(ipAddress),
+                userAgent: req.headers['user-agent'] || "Unknown",
+            });
             return res.status(400).json({ message: "This lottery code has already been used." });
         }
 
