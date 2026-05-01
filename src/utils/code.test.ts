@@ -16,3 +16,31 @@ describe('shufflePrizePool', () => {
         })
     })
 })
+
+describe('generateLotteryCode', () => {
+    it('should return a unique string of length 10', () => {
+        // Arrange
+        const allowedChars = new Set('ABCDEFGHJKLMNPQRSTUVWXYZ23456789')
+        const count = 1000
+        const codes = new Set<string>()
+
+        // Act + Assert
+        for (let i = 0; i < count; i++) {
+            const code = generateLotteryCode()
+
+            // Uniqueness check
+            expect(codes.has(code)).toBe(false)
+
+            codes.add(code)
+
+            expect(code).toHaveLength(10)
+            for (const char of code) {
+                expect(allowedChars.has(char)).toBe(true)
+            }
+        }
+
+        // Assert uniqueness
+        expect(codes.size).toBe(count)
+
+    })
+})

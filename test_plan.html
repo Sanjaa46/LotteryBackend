@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unit Test Төлөвлөгөө — Lottery Backend</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Mongolian&family=IBM+Plex+Mono:wght@400;600&family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --surface: #111318;
+    --surface2: #181b22;
+    --border: #1f2330;
+    --text: #dde1ec;
+    --muted: #5a6178;
+    --accent: #e8f542;
+    --accent2: #42f5a8;
+    --accent3: #f54242;
+    --accent4: #4287f5;
+
+    --l1: #c084fc;
+    --l1-bg: #1a0d2e;
+    --l1-border: #4a1d8a;
+
+    --l2: #38bdf8;
+    --l2-bg: #0a1e2e;
+    --l2-border: #0e4f6e;
+
+    --l3: #fb923c;
+    --l3-bg: #1c0e00;
+    --l3-border: #7c3010;
+
+    --l4: #4ade80;
+    --l4-bg: #051a0e;
+    --l4-border: #166534;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    line-height: 1.7;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* BG texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 10% 10%, rgba(232,245,66,0.04) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 90% 80%, rgba(66,245,168,0.03) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 60px 24px 80px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* HEADER */
+  header {
+    margin-bottom: 56px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 40px;
+  }
+
+  .header-badge {
+    display: inline-block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px solid rgba(232,245,66,0.3);
+    background: rgba(232,245,66,0.05);
+    padding: 4px 12px;
+    border-radius: 2px;
+    margin-bottom: 20px;
+  }
+
+  header h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(40px, 8vw, 72px);
+    letter-spacing: 2px;
+    color: #fff;
+    line-height: 1;
+    margin-bottom: 12px;
+  }
+
+  header h1 span {
+    color: var(--accent);
+  }
+
+  header p {
+    color: var(--muted);
+    font-size: 13px;
+    font-family: 'IBM Plex Mono', monospace;
+    margin-top: 16px;
+  }
+
+  /* STATS ROW */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 48px;
+  }
+
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px;
+    text-align: center;
+  }
+
+  .stat-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 36px;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .stat-label {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.5px;
+  }
+
+  .stat:nth-child(1) .stat-num { color: var(--l1); }
+  .stat:nth-child(2) .stat-num { color: var(--l2); }
+  .stat:nth-child(3) .stat-num { color: var(--l3); }
+  .stat:nth-child(4) .stat-num { color: var(--l4); }
+
+  /* SECTION */
+  .section {
+    margin-bottom: 32px;
+  }
+
+  .layer-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 20px;
+    border-radius: 8px 8px 0 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .layer-header::after {
+    content: attr(data-num);
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 48px;
+    opacity: 0.07;
+    line-height: 1;
+  }
+
+  .l1-header { background: var(--l1-bg); border: 1px solid var(--l1-border); }
+  .l2-header { background: var(--l2-bg); border: 1px solid var(--l2-border); }
+  .l3-header { background: var(--l3-bg); border: 1px solid var(--l3-border); }
+  .l4-header { background: var(--l4-bg); border: 1px solid var(--l4-border); }
+
+  .layer-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .l1-header .layer-dot { background: var(--l1); box-shadow: 0 0 8px var(--l1); }
+  .l2-header .layer-dot { background: var(--l2); box-shadow: 0 0 8px var(--l2); }
+  .l3-header .layer-dot { background: var(--l3); box-shadow: 0 0 8px var(--l3); }
+  .l4-header .layer-dot { background: var(--l4); box-shadow: 0 0 8px var(--l4); }
+
+  .layer-title {
+    font-weight: 600;
+    font-size: 14px;
+    color: #fff;
+  }
+
+  .layer-sub {
+    font-size: 11px;
+    font-family: 'IBM Plex Mono', monospace;
+    margin-left: auto;
+    padding-right: 60px;
+  }
+  .l1-header .layer-sub { color: var(--l1); opacity: 0.7; }
+  .l2-header .layer-sub { color: var(--l2); opacity: 0.7; }
+  .l3-header .layer-sub { color: var(--l3); opacity: 0.7; }
+  .l4-header .layer-sub { color: var(--l4); opacity: 0.7; }
+
+  .layer-body {
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    overflow: hidden;
+  }
+
+  /* FILE BLOCK */
+  .file-block {
+    border-bottom: 1px solid var(--border);
+  }
+  .file-block:last-child { border-bottom: none; }
+
+  .file-name {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px;
+    background: var(--surface);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+  }
+
+  .file-name:hover { background: var(--surface2); }
+
+  .file-icon {
+    font-size: 14px;
+    opacity: 0.8;
+  }
+
+  .file-count {
+    margin-left: auto;
+    font-size: 10px;
+    color: var(--muted);
+    background: var(--bg);
+    padding: 2px 8px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+
+  .test-list {
+    padding: 0;
+    background: var(--bg);
+  }
+
+  .test-item {
+    display: grid;
+    grid-template-columns: 24px 1fr auto;
+    align-items: start;
+    gap: 12px;
+    padding: 10px 20px;
+    border-bottom: 1px solid rgba(31,35,48,0.6);
+    transition: background 0.1s;
+  }
+
+  .test-item:last-child { border-bottom: none; }
+  .test-item:hover { background: var(--surface); }
+
+  .test-icon {
+    font-size: 12px;
+    padding-top: 2px;
+    text-align: center;
+  }
+
+  .test-desc {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  .test-desc .mn {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    padding: 2px 7px;
+    border-radius: 3px;
+    white-space: nowrap;
+    align-self: start;
+    margin-top: 3px;
+  }
+
+  .tag-pass  { background: rgba(74,222,128,0.1); color: #4ade80; border: 1px solid rgba(74,222,128,0.2); }
+  .tag-mock  { background: rgba(251,146,60,0.1); color: #fb923c; border: 1px solid rgba(251,146,60,0.2); }
+  .tag-jwt   { background: rgba(56,189,248,0.1); color: #38bdf8; border: 1px solid rgba(56,189,248,0.2); }
+  .tag-db    { background: rgba(192,132,252,0.1); color: #c084fc; border: 1px solid rgba(192,132,252,0.2); }
+  .tag-async { background: rgba(232,245,66,0.1); color: #e8f542; border: 1px solid rgba(232,245,66,0.2); }
+
+  /* TIMELINE */
+  .timeline {
+    margin-top: 48px;
+    position: relative;
+  }
+
+  .timeline-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    letter-spacing: 1px;
+    color: #fff;
+    margin-bottom: 24px;
+  }
+
+  .timeline-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+
+  .week-card {
+    border-radius: 8px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .week-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+
+  .wk1 { background: var(--l1-bg); border: 1px solid var(--l1-border); }
+  .wk1::before { background: var(--l1); }
+  .wk2 { background: var(--l2-bg); border: 1px solid var(--l2-border); }
+  .wk2::before { background: var(--l2); }
+  .wk3 { background: var(--l3-bg); border: 1px solid var(--l3-border); }
+  .wk3::before { background: var(--l3); }
+
+  .week-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .wk1 .week-num { color: var(--l1); }
+  .wk2 .week-num { color: var(--l2); }
+  .wk3 .week-num { color: var(--l3); }
+
+  .week-heading {
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 12px;
+  }
+
+  .week-items {
+    list-style: none;
+  }
+
+  .week-items li {
+    font-size: 12px;
+    color: var(--muted);
+    padding: 4px 0;
+    font-family: 'IBM Plex Mono', monospace;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .week-items li::before { content: '→'; opacity: 0.3; flex-shrink: 0; }
+  .week-items li:last-child { border-bottom: none; }
+
+  /* MOCK SECTION */
+  .mock-section {
+    margin-top: 32px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+  }
+
+  .mock-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+
+  .mock-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .mock-item {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px;
+  }
+
+  .mock-code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  .mock-item:nth-child(1) .mock-code { color: var(--l1); }
+  .mock-item:nth-child(2) .mock-code { color: var(--accent3); }
+  .mock-item:nth-child(3) .mock-code { color: var(--accent); }
+
+  .mock-desc {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* AAA BOX */
+  .aaa-box {
+    margin-top: 32px;
+    background: linear-gradient(135deg, rgba(232,245,66,0.03), rgba(66,245,168,0.03));
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background-color: var(--border);
+  }
+
+  .aaa-item {
+    background: var(--bg);
+    padding: 20px;
+    text-align: center;
+  }
+
+  .aaa-item:first-child { border-radius: 7px 0 0 7px; }
+  .aaa-item:last-child { border-radius: 0 7px 7px 0; }
+
+  .aaa-letter {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 48px;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  .aaa-item:nth-child(1) .aaa-letter { color: var(--l1); }
+  .aaa-item:nth-child(2) .aaa-letter { color: var(--l2); }
+  .aaa-item:nth-child(3) .aaa-letter { color: var(--l3); }
+
+  .aaa-word {
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 4px;
+  }
+
+  .aaa-desc {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  /* FOOTER */
+  footer {
+    margin-top: 60px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .footer-left {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .footer-cmd {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    background: rgba(232,245,66,0.05);
+    border: 1px solid rgba(232,245,66,0.2);
+    padding: 8px 16px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+  }
+
+  @media (max-width: 640px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .timeline-grid { grid-template-columns: 1fr; }
+    .mock-grid { grid-template-columns: 1fr; }
+    .aaa-box { grid-template-columns: 1fr; }
+    .aaa-item:first-child { border-radius: 7px 7px 0 0; }
+    .aaa-item:last-child { border-radius: 0 0 7px 7px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="header-badge">Node.js сургалт · Lottery Backend</div>
+    <h1>UNIT TEST<br><span>ТӨЛӨВЛӨГӨӨ</span></h1>
+    <p>// Хялбараас → хэцүү рүү дарааллуулсан · 4 давхарга · 3 долоо хоног</p>
+  </header>
+
+  <!-- STATS -->
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-num">4</div>
+      <div class="stat-label">Давхарга</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">9</div>
+      <div class="stat-label">Test файл</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">35+</div>
+      <div class="stat-label">Test тоо</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">3</div>
+      <div class="stat-label">Долоо хоног</div>
+    </div>
+  </div>
+
+  <!-- LAYER 1 -->
+  <div class="section">
+    <div class="layer-header l1-header" data-num="01">
+      <span class="layer-dot"></span>
+      <span class="layer-title">Давхарга 1 — Utils (Цэвэр функцууд)</span>
+      <span class="layer-sub">Гадаад dependency байхгүй</span>
+    </div>
+    <div class="layer-body">
+
+      <div class="file-block">
+        <div class="file-name">
+          <span class="file-icon">📄</span>
+          src/utils/password.test.ts
+          <span class="file-count">4 тест</span>
+        </div>
+        <div class="test-list">
+          <div class="test-item">
+            <div class="test-icon">🔐</div>
+            <div class="test-desc">
+              hashPassword → string буцаадаг эсэх
+              <span class="mn">typeof result === 'string' байх ёстой</span>
+            </div>
+            <span class="tag tag-async">ASYNC</span>
+          </div>
+          <div class="test-item">
+            <div class="test-icon">🔐</div>
+            <div class="test-desc">
+              hashPassword → original password-тай адилгүй байдаг
+              <span class="mn">result !== password байх ёстой</span>
+            </div>
+            <span class="tag tag-async">ASYNC</span>
+          </div>
+          <div class="test-item">
+            <div class="test-icon">✅</div>
+            <div class="test-desc">
+              comparePasswords → зөв password-д true буцаадаг
+              <span class="mn">Зөв password оруулбал true буцах ёстой</span>
+            </div>
+            <span class="tag tag-async">ASYNC</span>
+          </div>
+          <div class="test-item">
+            <div class="test-icon">❌</div>
+            <div class="test-desc">
+              comparePasswords → буруу password-д false буцаадаг
+              <span class="mn">Буруу password оруулбал false буцах ёстой</span>
+            </div>
+            <span class="tag tag-async">ASYNC</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="file-block">
+        <div class="file-name">
+          <span class="file-icon">📄</span>
+          src/utils/code.test.ts
+          <span class="file-count">4 тест</span>
+        </div>
+        <div class="test-list">
+          <div class="test-item">
+            <div class="test-icon">🎲</div>
+            <div class="test-desc">
+              generateLotteryCode → 10 тэмдэгт буцаадаг
+              <span class="mn">result.length === 10 байх ёстой</span>
+            </div>
+            <span class="tag tag-pass">PURE</span>
+          </div>
+          <div class="test-item">
+            <div class="test-icon">🎲</div>
+            <div class="test-desc">
+              generateLotteryCode → давтагдашгүй код үүсгэдэг
+              <span class="mn">2 удаа дуудахад өөр өөр утга гарах ёстой</span>
+            </div>
+            <span class="tag tag-pass">PURE</span>
+          </div>
+          <div class="test-item">
+            <div class="test-icon">🔀</div>
+            <div class="test-desc">
+              shufflePrizePool → ижил урттай array буцаадаг
+              <span class="mn">input.length === output.length байх ёстой</span>
+            </div>
+            <span class="tag tag-pass">PURE</span>
+          </div>
+          <div class="test-item">
+            <div class="test-icon">🔀</div>
+            <div class="test-desc">
+              shufflePrizePool → ижил элементүүдтэй байдаг
+              <span class="mn">Элементүүд алдагдахгүй, зөвхөн дараалал өөрчлөгддөг</span>
+            </div>
+            <span class="tag tag-pass">PURE</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- LAYER 2 -->
+  <div class="section">
+    <div class="layer-header l2-header" data-num="02">
+      <span class="layer-dot"></span>
+      <span class="layer-title">Давхарга 2 — Middleware</span>
+      <span class="layer-sub">req/res mock хийх шаардлагатай</span>
+    </div>
+    <div class="layer-body">
+
+      <div class="file-block">
+        <div class="file-name">
+          <span class="file-icon">🛡️</span>
+          src/middleware/authMiddleware.test.ts
+          <span class="file-count">4 тест</span>
+        </div>
+        <div class="test-list">
+          <div class="test-item">
+            <div class="test-icon">🚫</div>
+            <div class="test-desc">
+              Authorization header байхгүй үед 401 буцаадаг
+              <span class="mn">req.headers.authorization === undefined үед</span>
+            </div>
+            <span class="tag tag-jwt">JWT</span>
+          </div>
+          <div class="test-item">
+            <div class="test-icon">🚫</div>
+            <div class="test-desc">
+              Буруу/хуурамч token-д 401 буцаадаг
+              <span class="mn">jwt.verify алдаа гаргах үед</span>
+            </div>
+            <span class="tag tag-jwt">JWT</span>
+          </div>
+          <div class="test-item">
+            <div class="test-icon">✅</div>
+            <div class="test-desc">
+              Зөв token-д req.user тавьж next() дуудна
+              <span class="mn">req.user.userId, email, role тавигдах ёстой</span>
+            </div>
+            <span class="tag tag-jwt">JWT</span>
+          </div>
+          <div class="test-item">
+            <div class="test-icon">🚫</div>
+            <div class="test-desc">
+              "Bearer" prefix байхгүй token-д 401 буцаадаг
+              <span class="mn">token.split(' ')[1] === undefined үед</span>
+            </div>
+            <span class="tag tag-jwt">JWT</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="file-block">
+        <div class="file-name">
+          <span class="file-icon">🛡️</span>
+          src/middleware/adminMiddleware.test.ts
+          <span class="file-count">3 тест</span>
+        </div>
+        <div class="test-list">
+          <div class="test-item">
+            <div class="test-icon">✅</div>
+            <div class="test-desc">
+              role === 'admin' үед next() дуудна
+              <span class="mn">next function нэг удаа дуудагдах ёстой</span>
+            </div>
+            <span class="tag tag-pass">PASS</span>
+          </div>
+          <div class="test-item">
+            <div class="test-icon">🚫</div>
+            <div class="test-desc">
+              role === 'user' үед 403 буцаадаг
+              <span class="mn">res.status(403).json(...) дуудагдах ёстой</span>
+            </div>
+            <span class="tag tag-pass">PASS</span>
+          </div>
+          <div class="test-item">
+            <div class="test-icon">🚫</div>
+            <div class="test-desc">
+              req.user байхгүй үед 403 буцаадаг
+              <span class="mn">req.user === undefined үед</span>
+            </div>
+            <span class="tag tag-pass">PASS</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="file-block">
+        <div class="file-name">
+          <span class="file-icon">🛡️</span>
+          src/middleware/userMiddleware.test.ts
+          <span class="file-count">2 тест</span>
+        </div>
+        <div class="test-list">
+          <div class="test-item">
+            <div class="test-icon">✅</div>
+            <div class="test-desc">
+              role === 'user' үед next() дуудна
+            </div>
+            <span class="tag tag-pass">PASS</span>
+          </div>
+          <div class="test-item">
+            <div class="test-icon">🚫</div>
+            <div class="test-desc">
+              role === 'admin' үед 403 буцаадаг
+            </div>
+            <span class="tag tag-pass">PASS</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- LAYER 3 -->
+  <div class="section">
+    <div class="layer-header l3-header" data-num="03">
+      <span class="layer-dot"></span>
+      <span class="layer-title">Давхарга 3 — Controllers</span>
+      <span class="layer-sub">Prisma + Redis mock хийх шаардлагатай</span>
+    </div>
+    <div class="layer-body">
+
+      <div class="file-block">
+        <div class="file-name">
+          <span class="file-icon">🔑</span>
+          src/controllers/auth.controller.test.ts
+          <span class="file-count">8 тест</span>
+        </div>
+        <div class="test-list">
+          <div class="test-item">
+            <div class="test-icon">📝</div>
+            <div class="test-desc">
+              register — body байхгүй үед 400 буцаадаг
+            </div>
+            <span class="tag tag-db">MOCK</span>
+          </div>
+          <div class="test-item">
+            <div class="test-icon">📝</div>
+            <div class="test-desc">
+              register — буруу email формат → 400
+              <span class="mn">emailRegex.test(email) === false үед</span>
+            </div>
+            <span class="tag tag-db">MOCK</span>
+          </div>
+          <div class="test-item">
+            <div class="test-icon">📝</div>
+            <div class="test-desc">
+              register — бүртгэлтэй email → 409
+              <span class="mn">prisma.user.findUnique → user буцаадаг mock</span>
+            </div>
+            <span class="tag tag-db">MOCK</span>
+          </div>
+          <div class="test-item">
+            <div class="test-icon">📝</div>
+            <div class="test-desc">
+              register — зөв input → 200, OTP илгээдэг
+              <span class="mn">redis.set болон sendEmail дуудагдах ёстой</span>
+            </div>
+            <span class="tag tag-db">MOCK</span>
+          </div>
+          <div class="test-item">
+            <div class="test-icon">🔒</div>
+            <div class="test-desc">
+              login — user олдохгүй → 401
+            </div>
+            <span class="tag tag-db">MOCK</span>
+          </div>
+          <div class="test-item">
+            <div class="test-icon">🔒</div>
+            <div class="test-desc">
+              login — буруу password → 401
+            </div>
+            <span class="tag tag-db">MOCK</span>
+          </div>
+          <div class="test-item">
+            <div class="test-icon">🔒</div>
+            <div class="test-desc">
+              login — suspended user → 403
+            </div>
+            <span class="tag tag-db">MOCK</span>
+          </div>
+          <div class="test-item">
+            <div class="test-icon">🔒</div>
+            <div class="test-desc">
+              login — зөв input → 200, accessToken буцаадаг
+            </div>
+            <span class="tag tag-db">MOCK</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="file-block">
+        <div class="file-name">
+          <span class="file-icon">📣</span>
+          src/controllers/campaign.controller.test.ts
+          <span class="file-count">5 тест</span>
+        </div>
+        <div class="test-list">
+          <div class="test-item">
+            <div class="test-icon">📋</div>
+            <div class="test-desc">
+              createCampaign — body байхгүй → 400
+            </div>
+            <span class="tag tag-mock">MOCK</span>
+          </div>
+          <div class="test-item">
+            <div class="test-icon">📋</div>
+            <div class="test-desc">
+              createCampaign — startDate өнгөрсөн огноо → 400
+            </div>
+            <span class="tag tag-mock">MOCK</span>
+          </div>
+          <div class="test-item">
+            <div class="test-icon">📋</div>
+            <div class="test-desc">
+              createCampaign — startDate > endDate → 400
+            </div>
+            <span class="tag tag-mock">MOCK</span>
+          </div>
+          <div class="test-item">
+            <div class="test-icon">📋</div>
+            <div class="test-desc">
+              createCampaign — зөв input → 200
+            </div>
+            <span class="tag tag-mock">MOCK</span>
+          </div>
+          <div class="test-item">
+            <div class="test-icon">📋</div>
+            <div class="test-desc">
+              campaignList — буруу status filter → 400
+            </div>
+            <span class="tag tag-mock">MOCK</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="file-block">
+        <div class="file-name">
+          <span class="file-icon">🎟️</span>
+          src/controllers/submission.controller.test.ts
+          <span class="file-count">5 тест</span>
+        </div>
+        <div class="test-list">
+          <div class="test-item">
+            <div class="test-icon">🎯</div>
+            <div class="test-desc">
+              submitLotteryCode — code байхгүй → 400
+            </div>
+            <span class="tag tag-mock">MOCK</span>
+          </div>
+          <div class="test-item">
+            <div class="test-icon">🎯</div>
+            <div class="test-desc">
+              submitLotteryCode — хэдийн ашиглагдсан code → 400
+              <span class="mn">lotteryCode.isUsed === true үед</span>
+            </div>
+            <span class="tag tag-mock">MOCK</span>
+          </div>
+          <div class="test-item">
+            <div class="test-icon">🎯</div>
+            <div class="test-desc">
+              submitLotteryCode — campaign ACTIVE биш → 400
+            </div>
+            <span class="tag tag-mock">MOCK</span>
+          </div>
+          <div class="test-item">
+            <div class="test-icon">🏆</div>
+            <div class="test-desc">
+              WIN case — PrizeClaim үүснэ, "Congratulations" буцаадаг
+              <span class="mn">prizeId байгаа code ашиглах үед</span>
+            </div>
+            <span class="tag tag-mock">MOCK</span>
+          </div>
+          <div class="test-item">
+            <div class="test-icon">😞</div>
+            <div class="test-desc">
+              LOSE case — PrizeClaim үүсэхгүй, "better luck" буцаадаг
+              <span class="mn">prizeId === null үед</span>
+            </div>
+            <span class="tag tag-mock">MOCK</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- LAYER 4 -->
+  <div class="section">
+    <div class="layer-header l4-header" data-num="04">
+      <span class="layer-dot"></span>
+      <span class="layer-title">Давхарга 4 — Integration Tests</span>
+      <span class="layer-sub">Бодит test database ашиглана · Одоогоор алгасаж болно</span>
+    </div>
+    <div class="layer-body">
+      <div class="test-item" style="padding: 20px; background: var(--bg);">
+        <div class="test-icon">⏳</div>
+        <div class="test-desc" style="color: var(--muted);">
+          Давхарга 1–3 дуусгасны дараа хийнэ. Бодит PostgreSQL + Redis тест database шаардлагатай.
+          <span class="mn">End-to-end flow: register → login → submit code → check claim</span>
+        </div>
+        <span class="tag tag-db">LATER</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- AAA PATTERN -->
+  <div class="aaa-box">
+    <div class="aaa-item">
+      <div class="aaa-letter">A</div>
+      <div class="aaa-word">ARRANGE</div>
+      <div class="aaa-desc">Өгөгдөл бэлдэх<br>Mock тохируулах</div>
+    </div>
+    <div class="aaa-item">
+      <div class="aaa-letter">A</div>
+      <div class="aaa-word">ACT</div>
+      <div class="aaa-desc">Функц дуудах<br>await хийх</div>
+    </div>
+    <div class="aaa-item">
+      <div class="aaa-letter">A</div>
+      <div class="aaa-word">ASSERT</div>
+      <div class="aaa-desc">expect(...)<br>Үр дүн шалгах</div>
+    </div>
+  </div>
+
+  <!-- MOCK SECTION -->
+  <div class="mock-section">
+    <div class="mock-title">// Давхарга 3-д mock хийх шаардлагатай зүйлс</div>
+    <div class="mock-grid">
+      <div class="mock-item">
+        <div class="mock-code">jest.mock('../lib/prisma')</div>
+        <div class="mock-desc">Database дуудлагуудыг mock хийнэ. findUnique, create, update гэх мэт.</div>
+      </div>
+      <div class="mock-item">
+        <div class="mock-code">jest.mock('../lib/redis')</div>
+        <div class="mock-desc">Redis get/set/del дуудлагуудыг mock хийнэ. OTP, refresh token гэх мэт.</div>
+      </div>
+      <div class="mock-item">
+        <div class="mock-code">jest.mock('../utils/mailer')</div>
+        <div class="mock-desc">sendEmail функцийг mock хийнэ. Бодит имэйл илгээхгүй.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TIMELINE -->
+  <div class="timeline">
+    <div class="timeline-title">ГҮЙЦЭТГЭХ ДАРААЛАЛ</div>
+    <div class="timeline-grid">
+      <div class="week-card wk1">
+        <div class="week-num">1-р долоо хоног</div>
+        <div class="week-heading">Давхарга 1 — Utils</div>
+        <ul class="week-items">
+          <li>Jest + ts-jest суулгах</li>
+          <li>jest.config.ts тохируулах</li>
+          <li>password.test.ts</li>
+          <li>code.test.ts</li>
+          <li>npm test ажиллуулах</li>
+        </ul>
+      </div>
+      <div class="week-card wk2">
+        <div class="week-num">2-р долоо хоног</div>
+        <div class="week-heading">Давхарга 2 — Middleware</div>
+        <ul class="week-items">
+          <li>req/res mock сурах</li>
+          <li>authMiddleware.test.ts</li>
+          <li>adminMiddleware.test.ts</li>
+          <li>userMiddleware.test.ts</li>
+          <li>jest.fn() ашиглах</li>
+        </ul>
+      </div>
+      <div class="week-card wk3">
+        <div class="week-num">3-р долоо хоног</div>
+        <div class="week-heading">Давхарга 3 — Controllers</div>
+        <ul class="week-items">
+          <li>Prisma mock сурах</li>
+          <li>auth.controller.test.ts</li>
+          <li>campaign.controller.test.ts</li>
+          <li>submission.controller.test.ts</li>
+          <li>Coverage report харах</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-left">
+      🍜 Lottery Backend · Node.js сургалтын test төлөвлөгөө
+    </div>
+    <div class="footer-cmd">npm test -- --coverage</div>
+  </footer>
+
+</div>
+</body>
+</html>

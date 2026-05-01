@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret_key";
 
 export const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -13,12 +12,22 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction) 
 
         // Get only Bearer token
         const token = authHeader.split(' ')[1];
+        const tokenType = authHeader.split(' ')[0];
+        if (tokenType !== 'Bearer') {
+            return res.status(401).json({ message: "Authorization header must start with Bearer" });
+        }
         if (!token) {
             return res.status(401).json({ message: "Token is missing" });
         }
 
         // Verify JWT token
-        const decoded = jwt.verify(token, JWT_SECRET) as { userId: number, email: string, role?: string };
+        const secret = process.env.JWT_SECRET || 'test_secret';
+        const decoded = jwt.verify(token, secret) as { userId: number, email: string, role?: string };
+        if (!decoded) {
+            return res.status(401).json({ message: "Invalid token" });
+        }
+
+        // Attach user information to the request object
         req.user = {
             userId: decoded.userId,
             email: decoded.email,
@@ -27,7 +36,15 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction) 
 
         next();
     } catch (error) {
+        if (error instanceof jwt.TokenExpiredError) {
+            return res.status(401).json({ message: "Token has expired" });
+        }
+        
+        if (error instanceof jwt.JsonWebTokenError) {
+            return res.status(401).json({ message: "Invalid token" });
+        }
+
         console.error("Error in auth middleware:", error);
-        res.status(401).json({ message: "Unauthorized" });
+        res.status(500).json({ message: "Internal server error" });
     }
 }
