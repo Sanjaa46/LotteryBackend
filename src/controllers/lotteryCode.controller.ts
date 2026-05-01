@@ -1,8 +1,8 @@
-import { Request, Response } from "express";
-import prisma from "../lib/prisma";
-import { CampaignStatus } from "../generated/prisma";
-import { generateLotteryCode } from "../utils/code";
-import { createAuditLog } from "../utils/auditLog";
+import type { Request, Response } from "express";
+import prisma from "../lib/prisma.js";
+import { CampaignStatus } from "../generated/prisma/index.js";
+import { generateLotteryCode } from "../utils/code.js";
+import { createAuditLog } from "../utils/auditLog.js";
 
 const MAX_CODES_PER_BATCH = 1000;
 

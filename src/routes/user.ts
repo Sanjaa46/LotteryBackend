@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { getUserProfile, getUserSubmissions, getUserPrizeClaims } from "../controllers/user.controller";
-import { authMiddleware } from "../middleware/authMiddleware";
-import { userMiddleware } from "../middleware/userMiddleware";
-import { submitLotteryCode } from "../controllers/submission.controller";
-import { submitLimiter } from "../middleware/rateLimiter";
+import { getUserProfile, getUserSubmissions, getUserPrizeClaims } from "../controllers/user.controller.js";
+import { authMiddleware } from "../middleware/authMiddleware.js";
+import { userMiddleware } from "../middleware/userMiddleware.js";
+import { submitLotteryCode } from "../controllers/submission.controller.js";
+import { submitLimiter } from "../middleware/rateLimiter.js";
 
 const router = Router();
 

@@ -1,5 +1,5 @@
-import { Request, Response } from "express";
-import prisma from "../lib/prisma";
+import type { Request, Response } from "express";
+import prisma from "../lib/prisma.js";
 import { stringify } from "csv-stringify/sync";
 
 export const getSubmissionReport = async (req: Request, res: Response) => {

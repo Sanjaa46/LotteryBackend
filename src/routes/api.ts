@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { authMiddleware } from "../middleware/authMiddleware";
-import { adminMiddleware } from "../middleware/adminMiddleware";
-import { getCampaignStatuses, getUserStatuses, getClaimStatuses } from "../controllers/api.controller";
+import { authMiddleware } from "../middleware/authMiddleware.js";
+import { adminMiddleware } from "../middleware/adminMiddleware.js";
+import { getCampaignStatuses, getUserStatuses, getClaimStatuses } from "../controllers/api.controller.js";
 
 const router = Router();
 

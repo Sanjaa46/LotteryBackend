@@ -1,8 +1,8 @@
-import { Request, Response } from "express";
-import prisma from "../lib/prisma";
-import { ClaimStatus } from "../generated/prisma";
-import { sendEmail } from "../utils/mailer";
-import { createAuditLog } from "../utils/auditLog";
+import type { Request, Response } from "express";
+import prisma from "../lib/prisma.js";
+import { ClaimStatus } from "../generated/prisma/index.js";
+import { sendEmail } from "../utils/mailer.js";
+import { createAuditLog } from "../utils/auditLog.js";
 
 export const getPrizeClaims = async (req: Request, res: Response) => {
     try {

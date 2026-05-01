@@ -1,7 +1,7 @@
-import { Request } from "express";
+import type { Request } from "express";
 import { rateLimit, ipKeyGenerator } from "express-rate-limit";
 import redisStore from "rate-limit-redis";
-import redis from "../lib/redis";
+import redis from "../lib/redis.js";
 
 export const limiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute
@@ -10,7 +10,7 @@ export const limiter = rateLimit({
     legacyHeaders: false,
 
     store: new redisStore({
-        sendCommand: (...args: string[]) => redis.call(args[0], ...args.slice(1)) as any,
+        sendCommand: (...args: string[]) => redis.call(args[0]!, ...args.slice(1)) as any,
         prefix: 'rl',
     })
 })
@@ -31,7 +31,7 @@ export const submitLimiter = rateLimit({
         return `submit_${normalizedIp}`;
     },
     store: new redisStore({
-        sendCommand: (...args: string[]) => redis.call(args[0], ...args.slice(1)) as any,
+        sendCommand: (...args: string[]) => redis.call(args[0]!, ...args.slice(1)) as any,
         prefix: 'submit_rl',
     })
 })

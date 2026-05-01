@@ -1,6 +1,5 @@
-import prisma from "../lib/prisma";
-import { Request, Response } from "express";
-import { CampaignStatus, UserStatus, ClaimStatus } from "../generated/prisma";
+import type { Request, Response } from "express";
+import { CampaignStatus, UserStatus, ClaimStatus } from "../generated/prisma/index.js";
 
 export const getCampaignStatuses = async (req: Request, res: Response) => {
     try {

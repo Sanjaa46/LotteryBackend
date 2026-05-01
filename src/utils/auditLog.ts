@@ -1,5 +1,4 @@
-import { Prisma } from '../generated/prisma';
-import prisma from '../lib/prisma';
+import { Prisma } from '../generated/prisma/index.js';
 
 // userId, action, entityType, entityId, oldValue, newValue, ipAddress, userAgent
 export const createAuditLog = async (

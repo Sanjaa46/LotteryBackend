@@ -1,8 +1,8 @@
-import { Request, Response } from "express";
-import prisma from "../lib/prisma";
-import { CampaignStatus } from "../generated/prisma";
-import { shufflePrizePool } from "../utils/code";
-import { createAuditLog } from "../utils/auditLog";
+import type { Request, Response } from "express";
+import prisma from "../lib/prisma.js";
+import { CampaignStatus } from "../generated/prisma/index.js";
+import { shufflePrizePool } from "../utils/code.js";
+import { createAuditLog } from "../utils/auditLog.js";
 
 export const createCampaign = async (req: Request, res: Response) => {
     try {
@@ -105,19 +105,32 @@ export const campaignList = async (req: Request, res: Response) => {
                 createdAt: 'desc'
             },
             where: {
-                name: {
-                    mode: "insensitive",
-                    contains: name ? String(name) : undefined
-                },
-                status: status ? String(status) as CampaignStatus : undefined,
-                startDate: {
-                    gte: fromDate ? parsedStartDate : undefined
-                },
-                endDate: {
-                    lte: toDate ? parsedEndDate : undefined
-                }
+                // Only add the 'name' filter if 'name' exists
+                ...(name && {
+                    name: {
+                        mode: "insensitive",
+                        contains: String(name),
+                    }
+                }),
+
+                // Direct equality filters can usually stay like this if they aren't nested,
+                // but for safety with exactOptionalPropertyTypes:
+                ...(status && { status: status as CampaignStatus }),
+
+                // Nested filters (gte/lte) MUST be handled conditionally
+                ...(fromDate && {
+                    startDate: {
+                        gte: parsedStartDate
+                    }
+                }),
+
+                ...(toDate && {
+                    endDate: {
+                        lte: parsedEndDate
+                    }
+                })
             }
-        })
+        });
 
         return res.status(200).json(campaigns)
     } catch (error) {
@@ -257,7 +270,7 @@ export const activateCampaign = async (req: Request, res: Response) => {
             if (prizeId !== null) {
                 prizeAssignmentCount.set(prizeId, (prizeAssignmentCount.get(prizeId) || 0) + 1);
             }
-            const codeId = codesToUpdate[index].id;
+            const codeId = codesToUpdate[index]!.id;
             
             // Get existing array or create new one, then push
             const existing = prizesToCodesMap.get(prizeId) || [];

@@ -7,7 +7,10 @@
     "test": "vitest",
     "test:watch": "vitest --watch",
     "coverage": "vitest run --coverage",
-    "dev": "tsx watch src/server.ts"
+    "dev": "tsx watch src/server.ts",
+    "generate": "prisma generate",
+    "build": "npm run generate && tsc && cp -r src/generated dist/generated",
+    "start": "node dist/server.js"
   },
   "repository": {
     "type": "git",
@@ -49,7 +52,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^25.6.0",
     "@vitest/coverage-v8": "^4.1.5",
-    "prisma": "^6.19.3",
+    "prisma": "^7.5.0",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
     "typescript": "^6.0.2",

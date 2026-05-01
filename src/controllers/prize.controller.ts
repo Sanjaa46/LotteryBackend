@@ -1,6 +1,6 @@
-import { Request, Response } from "express";
-import prisma from "../lib/prisma";
-import { createAuditLog } from "../utils/auditLog";
+import type { Request, Response } from "express";
+import prisma from "../lib/prisma.js";
+import { createAuditLog } from "../utils/auditLog.js";
 
 export const createPrize = async (req: Request, res: Response) => {
     try {

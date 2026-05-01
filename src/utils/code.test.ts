@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { shufflePrizePool, generateLotteryCode } from "./code";
+import { shufflePrizePool, generateLotteryCode } from "./code.js";
 
 describe('shufflePrizePool', () => {
     describe('given an array of numbers and nulls', () => {

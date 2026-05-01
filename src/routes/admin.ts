@@ -1,12 +1,12 @@
 import { Router } from "express";
-import { authMiddleware } from "../middleware/authMiddleware";
-import { adminMiddleware } from "../middleware/adminMiddleware";
-import { createCampaign, campaignList, campaignDetails, activateCampaign, pauseCampaign, unpauseCampaign } from "../controllers/campaign.controller";
-import { createPrize, prizeList, editPrize } from "../controllers/prize.controller";
-import { createCodeBatch, getCodeBatchDetails, codeBatchList, exportCodeBatch } from "../controllers/lotteryCode.controller";
-import { getPrizeClaims, changeClaimStatus } from "../controllers/claim.controller";
-import { getDashboardStats } from "../controllers/dashboard.controller";
-import { getSubmissionReport, getWinnersReport } from "../controllers/report.controller";
+import { authMiddleware } from "../middleware/authMiddleware.js";
+import { adminMiddleware } from "../middleware/adminMiddleware.js";
+import { createCampaign, campaignList, campaignDetails, activateCampaign, pauseCampaign, unpauseCampaign } from "../controllers/campaign.controller.js";
+import { createPrize, prizeList, editPrize } from "../controllers/prize.controller.js";
+import { createCodeBatch, getCodeBatchDetails, codeBatchList, exportCodeBatch } from "../controllers/lotteryCode.controller.js";
+import { getPrizeClaims, changeClaimStatus } from "../controllers/claim.controller.js";
+import { getDashboardStats } from "../controllers/dashboard.controller.js";
+import { getSubmissionReport, getWinnersReport } from "../controllers/report.controller.js";
 
 const router = Router();
 

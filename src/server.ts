@@ -1,12 +1,12 @@
 import express from "express";
 import cookieParser from "cookie-parser";
-import authRoutes from "./routes/auth";
-import userRoutes from "./routes/user";
-import adminRoutes from "./routes/admin"
-import apiRoutes from "./routes/api";
+import authRoutes from "./routes/auth.js";
+import userRoutes from "./routes/user.js";
+import adminRoutes from "./routes/admin.js"
+import apiRoutes from "./routes/api.js";
 import helmet from 'helmet';
 import * as dotenv from 'dotenv';
-import { limiter } from "./middleware/rateLimiter";
+import { limiter } from "./middleware/rateLimiter.js";
 
 dotenv.config();
 

@@ -1,7 +1,7 @@
-import { Request, Response } from "express";
-import prisma from "../lib/prisma";
-import { CampaignStatus } from "../generated/prisma";
-import redis from "../lib/redis";
+import type { Request, Response } from "express";
+import prisma from "../lib/prisma.js";
+import { CampaignStatus } from "../generated/prisma/index.js";
+import redis from "../lib/redis.js";
 
 /**
  * Fetches overall statistics for the dashboard, including:

@@ -1,7 +1,7 @@
-import { Request, Response } from "express";
-import prisma from "../lib/prisma";
-import { CampaignStatus, SubmissionResult } from "../generated/prisma";
-import { createAuditLog } from "../utils/auditLog";
+import type { Request, Response } from "express";
+import prisma from "../lib/prisma.js";
+import { CampaignStatus, SubmissionResult } from "../generated/prisma/index.js";
+import { createAuditLog } from "../utils/auditLog.js";
 
 export const submitLotteryCode = async (req: Request, res: Response) => {
     try {

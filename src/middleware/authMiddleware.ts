@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from "express";
+import type  { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
 
@@ -31,7 +31,7 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction) 
         req.user = {
             userId: decoded.userId,
             email: decoded.email,
-            role: decoded.role,
+            ...(decoded.role && { role: decoded.role })
         }
 
         next();

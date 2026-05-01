@@ -1,13 +1,13 @@
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
 import { randomBytes, createHash } from "crypto";
-import prisma from "../lib/prisma";
-import { UserStatus } from "../generated/prisma";
-import redis from "../lib/redis";
+import prisma from "../lib/prisma.js";
+import { UserStatus } from "../generated/prisma/index.js";
+import redis from "../lib/redis.js";
 import jwt from "jsonwebtoken";
-import { hashPassword, comparePasswords } from "../utils/password";
-import { otpCacheKey } from "../utils/cache";
-import { sendEmail } from "../utils/mailer";
-import { createAuditLog } from "../utils/auditLog";
+import { hashPassword, comparePasswords } from "../utils/password.js";
+import { otpCacheKey } from "../utils/cache.js";
+import { sendEmail } from "../utils/mailer.js";
+import { createAuditLog } from "../utils/auditLog.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret_key";
 const accessTokenExpiry = '15m';

@@ -1,6 +1,6 @@
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
 import { vi, describe, it, expect } from 'vitest';
-import { authMiddleware } from "./authMiddleware";
+import { authMiddleware } from "./authMiddleware.js";
 import jwt from "jsonwebtoken";
 
 describe('authMiddleware', () => {
