@@ -11,6 +11,9 @@ RUN npm install
 
 COPY . .
 
+# Prisma needs DATABASE_URL during generate
+ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
+
 RUN npm run build
 
 # =========================

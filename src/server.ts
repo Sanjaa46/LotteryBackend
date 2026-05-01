@@ -1,3 +1,4 @@
+import "./loadEnv.js";
 import express from "express";
 import cookieParser from "cookie-parser";
 import authRoutes from "./routes/auth.js";
@@ -5,10 +6,7 @@ import userRoutes from "./routes/user.js";
 import adminRoutes from "./routes/admin.js"
 import apiRoutes from "./routes/api.js";
 import helmet from 'helmet';
-import * as dotenv from 'dotenv';
 import { limiter } from "./middleware/rateLimiter.js";
-
-dotenv.config();
 
 const app = express()
 const port = process.env.PORT || 3000;
@@ -17,6 +15,7 @@ app.use(helmet());
 app.use(express.json());
 app.use(limiter);
 app.use(cookieParser());
+app.set('trust proxy', 1);
 app.use("/api/user", userRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
