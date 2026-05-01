@@ -10,6 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest --watch",
     "coverage": "vitest run --coverage",
+    "verify": "npm run test && npm run build",
+    "migrate:dev": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
     "bootstrap": "tsx src/bootstrap/bootstrap.ts",
     "start": "node dist/server.js",
