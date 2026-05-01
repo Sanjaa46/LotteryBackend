@@ -146,6 +146,9 @@ CREATE INDEX "LotteryCode_campaignId_idx" ON "LotteryCode"("campaignId");
 CREATE INDEX "LotteryCode_isUsed_idx" ON "LotteryCode"("isUsed");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Submission_lotteryCodeId_key" ON "Submission"("lotteryCodeId");
+
+-- CreateIndex
 CREATE INDEX "Submission_userId_idx" ON "Submission"("userId");
 
 -- CreateIndex

@@ -4,13 +4,16 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "vitest",
-    "test:watch": "vitest --watch",
-    "coverage": "vitest run --coverage",
     "dev": "tsx watch src/server.ts",
     "generate": "prisma generate",
     "build": "npm run generate && tsc && cp -r src/generated dist/generated",
-    "start": "node dist/server.js"
+    "test": "vitest run",
+    "test:watch": "vitest --watch",
+    "coverage": "vitest run --coverage",
+    "migrate:deploy": "prisma migrate deploy",
+    "bootstrap": "tsx src/bootstrap/bootstrap.ts",
+    "start": "node dist/server.js",
+    "deploy": "npm run migrate:deploy && npm run bootstrap && npm run start"
   },
   "repository": {
     "type": "git",
