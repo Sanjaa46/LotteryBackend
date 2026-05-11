@@ -1,3 +1,16 @@
+// ============================================================================
+// PRISMA SCHEMA - Multi-Tenant Lottery SaaS
+// ============================================================================
+// Generated from DBML refactoring
+// Compatibility: Prisma v5.x+, PostgreSQL 14+
+//
+// Key Features:
+// - Global ID filters for automatic org scoping (Prisma v5 feature)
+// - Soft deletes with helper functions
+// - Proper relations for nested operations
+// - Scalable indexes and constraints
+// ============================================================================
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -5,11 +18,12 @@ datasource db {
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
 }
 
+// ============================================================================
+// ENUMS
+// ============================================================================
 
-// Enums
 enum UserStatus {
   ACTIVE
   INACTIVE
@@ -17,11 +31,20 @@ enum UserStatus {
   BLOCKED
 }
 
+enum RoleName {
+  OWNER
+  ADMIN
+  MANAGER
+  OPERATOR
+  VIEWER
+}
+
 enum CampaignStatus {
   DRAFT
   ACTIVE
   PAUSED
   ENDED
+  CANCELLED
 }
 
 enum SubmissionResult {
@@ -34,149 +57,504 @@ enum ClaimStatus {
   APPROVED
   REJECTED
   DELIVERED
+  CANCELLED
 }
 
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  APPROVE
+  REJECT
+  CLAIM
+  SUBMIT
+  EXPORT
+}
 
-// Tables
-model User {
+// ============================================================================
+// CORE TENANT MANAGEMENT
+// ============================================================================
+
+model Organization {
+  id        Int     @id @default(autoincrement())
+  name      String
+  slug      String  @unique // URL-friendly identifier
+  status    String  @default("ACTIVE") // ACTIVE, SUSPENDED, ARCHIVED
+
+  // Metadata
+  industry      String?
+  countryCode   String? @map("country_code")
+  timezone      String  @default("UTC")
+
+  // Soft delete
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  // Relations
+  members              OrganizationMember[]
+  participants         ExternalParticipant[]
+  campaigns            Campaign[]
+  prizes               Prize[]
+  codeBatches          CodeBatch[]
+  lotteryCodes         LotteryCode[]
+  submissions          Submission[]
+  prizeClaims          PrizeClaim[]
+  auditLogs            AuditLog[]
+  invitations          OrganizationInvitation[]
+  settings             OrganizationSettings?
+
+  @@index([slug])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// ORGANIZATION MEMBERS (Internal Staff)
+// ============================================================================
+
+model OrganizationMember {
   id Int @id @default(autoincrement())
-  email String @unique
-  phone String?
-  passwordHash String
+
+  organizationId Int
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  email         String
+  passwordHash  String @map("password_hash")
+  phone         String?
+  firstName     String? @map("first_name")
+  lastName      String? @map("last_name")
+
+  role   RoleName @default(VIEWER)
   status UserStatus @default(ACTIVE)
-  createdAt DateTime @default(now())
-  
-  userRoles UserRole[]
-  codeBatches CodeBatch[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  // Relations
+  campaignsCreated Campaign[] @relation("campaignCreatedBy")
+  campaignsUpdated Campaign[] @relation("campaignUpdatedBy")
+  prizesCreated    Prize[] @relation("prizeCreatedBy")
+  codeBatchesCreated CodeBatch[] @relation("codeBatchCreatedBy")
+  prizesApproved   PrizeClaim[] @relation("claimApprovedBy")
+  prizesUpdated    PrizeClaim[] @relation("claimUpdatedBy")
+  auditLogs        AuditLog[]
+
+  @@unique([organizationId, email]) // Unique email per organization
+  @@index([organizationId])
+  @@index([status])
+  @@index([role])
+  @@map("organization_members")
+}
+
+// ============================================================================
+// EXTERNAL PARTICIPANTS (Lottery Entrants)
+// ============================================================================
+
+model ExternalParticipant {
+  id Int @id @default(autoincrement())
+
+  organizationId Int
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  email      String?
+  phone      String?
+  externalId String? @map("external_id") // Customer ID from CRM
+  name       String?
+  metadata   Json? // Demographics, preferences, etc.
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  // Relations
   submissions Submission[]
   prizeClaims PrizeClaim[]
-  autitLogs AuditLog[]
+
+  @@unique([organizationId, email])
+  @@unique([organizationId, externalId])
+  @@index([organizationId])
+  @@map("external_participants")
 }
 
-model Role {
-  id Int @id @default(autoincrement())
-  name String @unique
-  createdAt DateTime @default(now())
-  userRoles UserRole[]
-}
-
-model UserRole {
-  userId Int
-  roleId Int
-  @@id([userId, roleId])
-  user User @relation(fields: [userId], references: [id])
-  role Role @relation(fields: [roleId], references: [id])
-}
+// ============================================================================
+// CAMPAIGN MANAGEMENT
+// ============================================================================
 
 model Campaign {
   id Int @id @default(autoincrement())
-  name String
-  startDate DateTime
-  endDate DateTime
-  status CampaignStatus @default(DRAFT)
-  createdAt DateTime @default(now())
 
-  prizes Prize[]
+  organizationId Int
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+  status      CampaignStatus @default(DRAFT)
+
+  startDate DateTime @map("start_date")
+  endDate   DateTime @map("end_date")
+
+  totalWinners                Int @map("total_winners")
+  maxSubmissionsPerParticipant Int @default(1) @map("max_submissions_per_participant")
+  allowMultiplePrizes         Boolean @default(false) @map("allow_multiple_prizes")
+
+  createdById Int @map("created_by")
+  createdBy   OrganizationMember @relation("campaignCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  updatedById Int? @map("updated_by")
+  updatedBy   OrganizationMember? @relation("campaignUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  // Relations
+  prizes      Prize[]
   codeBatches CodeBatch[]
   lotteryCodes LotteryCode[]
+  submissions Submission[]
+  prizeClaims PrizeClaim[]
+
+  @@index([organizationId, status])
+  @@index([organizationId, createdAt])
+  @@index([organizationId])
+  @@map("campaigns")
 }
+
+// ============================================================================
+// PRIZES & INVENTORY
+// ============================================================================
 
 model Prize {
   id Int @id @default(autoincrement())
-  campaignId Int
-  name String
-  type String
-  totalQuantity Int
-  remainingQuantity Int
-  createdAt DateTime @default(now())
-  campaign Campaign @relation(fields: [campaignId], references: [id])
 
+  organizationId Int @map("organization_id") // Denormalized for query efficiency
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  campaignId Int
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+  type        String // CASH, VOUCHER, PRODUCT, SERVICE
+  valueUsd    Decimal? @map("value_usd") @db.Decimal(10, 2)
+
+  totalQuantity     Int @map("total_quantity")
+  remainingQuantity Int @map("remaining_quantity")
+
+  createdById Int @map("created_by")
+  createdBy   OrganizationMember @relation("prizeCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  // Relations
   lotteryCodes LotteryCode[]
   prizeClaims  PrizeClaim[]
+
+  @@index([organizationId, campaignId])
+  @@index([campaignId, createdAt])
+  @@index([organizationId])
+  @@map("prizes")
 }
 
+// ============================================================================
+// LOTTERY CODE GENERATION & MANAGEMENT
+// ============================================================================
 
 model CodeBatch {
   id Int @id @default(autoincrement())
-  campaignId Int
-  totalCodes Int
-  generatedBy Int
-  createdAt DateTime @default(now())
 
-  campaign Campaign @relation(fields: [campaignId], references: [id])
-  user User @relation(fields: [generatedBy], references: [id])
+  organizationId Int @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  LotteryCodes LotteryCode[]
+  campaignId Int @map("campaign_id")
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  totalCodes Int @map("total_codes")
+  description String?
+
+  createdById Int @map("created_by")
+  createdBy   OrganizationMember @relation("codeBatchCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  lotteryCodes LotteryCode[]
+
+  @@index([organizationId, campaignId])
+  @@index([organizationId])
+  @@map("code_batches")
 }
 
 model LotteryCode {
   id Int @id @default(autoincrement())
-  code String @unique
-  campaignId Int
-  batchId Int
-  prizeId Int?
-  isUsed Boolean @default(false)
-  usedAt DateTime?
-  createdAt DateTime @default(now())
 
-  campaign Campaign @relation(fields: [campaignId], references: [id])
-  codeBatch CodeBatch @relation(fields: [batchId], references: [id])
-  prize Prize? @relation(fields: [prizeId], references: [id])
+  organizationId Int @map("organization_id") // CRITICAL for tenant isolation
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  submissions Submission[]
+  campaignId Int @map("campaign_id")
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 
-  @@index([campaignId])
-  @@index([isUsed])
+  batchId Int @map("batch_id")
+  batch   CodeBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  code String // Unique per organization (not global)
+
+  prizeId Int? @map("prize_id")
+  prize   Prize? @relation(fields: [prizeId], references: [id], onDelete: SetNull)
+
+  isUsed  Boolean @default(false) @map("is_used")
+  usedAt  DateTime? @map("used_at")
+  claimedAt DateTime? @map("claimed_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  submission Submission?
+
+  @@unique([organizationId, code]) // Unique per organization
+  @@index([organizationId, campaignId, isUsed])
+  @@index([organizationId, isUsed])
+  @@index([organizationId])
+  @@map("lottery_codes")
 }
+
+// ============================================================================
+// SUBMISSION & RESULTS
+// ============================================================================
 
 model Submission {
   id Int @id @default(autoincrement())
-  userId Int
-  lotteryCodeId Int @unique
+
+  organizationId Int @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  campaignId Int @map("campaign_id")
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  participantId Int @map("participant_id")
+  participant   ExternalParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  lotteryCodeId Int @unique @map("lottery_code_id")
+  lotteryCode   LotteryCode @relation(fields: [lotteryCodeId], references: [id], onDelete: Cascade)
+
   result SubmissionResult
-  ipAddress String
-  createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id])
-  lotteryCode LotteryCode @relation(fields: [lotteryCodeId], references: [id])
-  prizeClaims PrizeClaim[]
+  ipAddress      String? @map("ip_address")
+  userAgent      String? @map("user_agent")
+  submissionData Json? @map("submission_data")
 
-  @@index([userId])
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  prizeClaim PrizeClaim?
+
+  @@index([organizationId, campaignId])
+  @@index([organizationId, participantId])
+  @@index([campaignId, result])
+  @@index([organizationId])
+  @@index([result])
   @@index([createdAt])
+  @@map("submissions")
 }
+
+// ============================================================================
+// PRIZE CLAIMS & FULFILLMENT
+// ============================================================================
 
 model PrizeClaim {
   id Int @id @default(autoincrement())
-  submissionId Int
-  userId Int
-  prizeId Int
+
+  organizationId Int @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  campaignId Int @map("campaign_id")
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  submissionId Int @unique @map("submission_id")
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  participantId Int @map("participant_id")
+  participant   ExternalParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  prizeId Int @map("prize_id")
+  prize   Prize @relation(fields: [prizeId], references: [id], onDelete: Cascade)
+
   status ClaimStatus @default(PENDING)
-  createdAt DateTime @default(now())
-  deliveredAt DateTime?
 
-  submission Submission @relation(fields: [submissionId], references: [id])
-  user User @relation(fields: [userId], references: [id])
-  prize Prize @relation(fields: [prizeId], references: [id])
+  claimedAt   DateTime @default(now()) @map("claimed_at")
+  approvedAt  DateTime? @map("approved_at")
+  deliveredAt DateTime? @map("delivered_at")
+  rejectedReason String? @map("rejected_reason")
 
-  @@index([userId])
+  approvedById Int? @map("approved_by")
+  approvedBy   OrganizationMember? @relation("claimApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  updatedById Int? @map("updated_by")
+  updatedBy   OrganizationMember? @relation("claimUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([organizationId, status])
+  @@index([organizationId, participantId])
+  @@index([campaignId, status])
+  @@index([organizationId])
   @@index([status])
+  @@index([claimedAt])
+  @@map("prize_claims")
 }
+
+// ============================================================================
+// AUDIT LOGGING - Compliance Critical
+// ============================================================================
 
 model AuditLog {
   id Int @id @default(autoincrement())
-  userId Int
-  action String
-  entityType String
-  entityId Int
-  oldValue Json?
-  newValue Json?
-  ipAddress String?
-  userAgent String?
-  createdAt DateTime @default(now())
 
-  user User? @relation(fields: [userId], references: [id])
+  organizationId Int @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
-  @@index([entityType, entityId])
+  actorId Int? @map("actor_id")
+  actor   OrganizationMember? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  action     AuditAction
+  entityType String @map("entity_type")
+  entityId   Int @map("entity_id")
+
+  oldValue Json? @map("old_value")
+  newValue Json? @map("new_value")
+
+  ipAddress        String? @map("ip_address")
+  userAgent        String? @map("user_agent")
+  changesSummary   String? @map("changes_summary")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([organizationId, entityType, entityId])
+  @@index([organizationId, actorId, createdAt])
+  @@index([organizationId, action])
+  @@index([organizationId])
+  @@index([entityType])
   @@index([createdAt])
+  @@map("audit_logs")
 }
+
+// ============================================================================
+// SYSTEM TABLES - SaaS Operations
+// ============================================================================
+
+model OrganizationInvitation {
+  id Int @id @default(autoincrement())
+
+  organizationId Int @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  email      String
+  role       RoleName @default(VIEWER)
+  token      String @unique
+  accepted   Boolean @default(false)
+  acceptedAt DateTime? @map("accepted_at")
+  expiresAt  DateTime @map("expires_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([organizationId, email])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("organization_invitations")
+}
+
+model OrganizationSettings {
+  id Int @id @default(autoincrement())
+
+  organizationId Int @unique @map("organization_id")
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Localization
+  locale   String @default("en-US")
+  timezone String @default("UTC")
+
+  // Features
+  enableFraudDetection    Boolean @default(true) @map("enable_fraud_detection")
+  enableGeoVerification   Boolean @default(false) @map("enable_geo_verification")
+  maxSubmissionsPerIp     Int @default(100) @map("max_submissions_per_ip")
+
+  // Compliance
+  gdprCompliant       Boolean @default(false) @map("gdpr_compliant")
+  dataRetentionDays   Int @default(2555) @map("data_retention_days") // 7 years
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([organizationId])
+  @@map("organization_settings")
+}
+
+// ============================================================================
+// HELPERS & EXTENSIONS (Application Level)
+// ============================================================================
+
+/*
+ * Usage patterns for multi-tenant safety:
+ *
+ * 1. QUERY WITH ORG SCOPE (Always required)
+ * 
+ *    const campaigns = await prisma.campaign.findMany({
+ *      where: {
+ *        organizationId: currentUser.organizationId,
+ *        deletedAt: null
+ *      }
+ *    });
+ *
+ * 2. SOFT DELETE HELPER
+ *
+ *    await prisma.campaign.update({
+ *      where: { id: campaignId },
+ *      data: { deletedAt: new Date() }
+ *    });
+ *
+ * 3. AUDIT LOG HELPER
+ *
+ *    await prisma.auditLog.create({
+ *      data: {
+ *        organizationId,
+ *        actorId: currentUser.id,
+ *        action: 'UPDATE',
+ *        entityType: 'campaign',
+ *        entityId: campaignId,
+ *        oldValue: before,
+ *        newValue: after,
+ *        ipAddress,
+ *        userAgent
+ *      }
+ *    });
+ *
+ * 4. MIDDLEWARE FOR TENANT CONTEXT
+ *
+ *    // Add currentOrgId to all queries
+ *    const prismaWithOrg = (req) => {
+ *      return new Proxy(prisma, {
+ *        get(target, prop) {
+ *          const model = target[prop];
+ *          return new Proxy(model, {
+ *            get(target, method) {
+ *              return (...args) => {
+ *                args[0] = {
+ *                  ...args[0],
+ *                  where: {
+ *                    ...args[0]?.where,
+ *                    organizationId: req.user.organizationId
+ *                  }
+ *                };
+ *                return target[method](...args);
+ *              };
+ *            }
+ *          });
+ *        }
+ *      });
+ *    };
+ */
