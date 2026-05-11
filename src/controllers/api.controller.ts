@@ -12,7 +12,7 @@ export const getCampaignStatuses = async (req: Request, res: Response) => {
         return res.json(statuses);
     } catch (error) {
         console.error("Error fetching campaign statuses:", error);
-        res.status(500).json({ message: "Internal server error" });
+        res.status(500).json({ message: "Internal server error." });
     }
 }
 
